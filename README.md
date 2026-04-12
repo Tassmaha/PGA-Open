@@ -15,6 +15,7 @@ Une plateforme open source pour la gestion des agents de sante communautaire (AS
 - **Multi-tenant** : 1 base de donnees par pays
 - **Hierarchie geographique dynamique** (3 a 8 niveaux)
 - Configuration complete par pays (agent, ID, devise, operateur mobile)
+- Analyse par IA
 
 ## Architecture
 
@@ -94,4 +95,4 @@ Les modules premium dans `modules/` ont leur propre licence commerciale.
 
 ---
 
-*Developpe par eSanteCoM*
+*Developpe par Dr Mahamadi Tassembedo*
