@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Tableau de bord</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<style>
+:root {
+  --bg:#0D1117; --bg2:#161B24; --bg3:#1E2530; --bg4:#252D3A;
+  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.12);
+  --text:#E8EDF5; --text2:#8A97AC; --text3:#5A6578;
+  --green:#2ECC7A; --amber:#F0A030; --red:#E8524A; --blue:#5B9CF6;
+  --r:8px; --r-lg:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+
+/* SIDEBAR */
+.sidebar{width:220px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:50;}
+.logo-area{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.logo-badge{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:32px;height:32px;background:var(--green);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:#0D1117;letter-spacing:-.04em;}
+.logo-armoirie{width:34px;height:34px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--text);letter-spacing:-.02em;}
+.logo-sub{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+.nav-section{padding:14px 12px 8px;flex:1;overflow-y:auto;}
+.nav-group{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;
+  padding:0 8px;margin:12px 0 5px;}
+.nav-group:first-child{margin-top:0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);
+  cursor:pointer;transition:background .15s;margin-bottom:2px;color:var(--text2);text-decoration:none;}
+.nav-item:hover{background:var(--bg3);}
+.nav-item.active{background:rgba(46,204,122,.08);color:var(--green);}
+.nav-item svg{width:16px;height:16px;fill:currentColor;flex-shrink:0;opacity:.7;}
+.nav-item.active svg{opacity:1;}
+.nav-item span{font-size:13px;font-weight:500;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;
+  font-size:10px;font-weight:700;padding:2px 6px;font-family:'IBM Plex Mono',monospace;}
+.sidebar-footer{padding:14px 12px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r);cursor:pointer;transition:background .15s;}
+.user-row:hover{background:var(--bg3);}
+.user-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#D4724A,#F0A030);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);}
+.user-role{font-size:10px;color:var(--text3);margin-top:1px;}
+
+/* MAIN */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;}
+.topbar{height:56px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 28px;
+  position:sticky;top:0;z-index:40;}
+.page-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.02em;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.period-sel{display:flex;align-items:center;gap:6px;background:var(--bg3);
+  border:1px solid var(--border);border-radius:var(--r);padding:6px 12px;
+  font-size:12px;color:var(--text2);font-weight:500;cursor:pointer;}
+.period-sel select{background:transparent;border:none;outline:none;color:var(--text2);
+  font-size:12px;font-family:'Instrument Sans',sans-serif;cursor:pointer;}
+.sync-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;
+  border-radius:var(--r);border:1px solid rgba(46,204,122,.2);background:rgba(46,204,122,.08);}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.sync-txt{font-size:11px;color:var(--green);font-weight:600;font-family:'IBM Plex Mono',monospace;}
+.topbar-btn{width:34px;height:34px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;position:relative;}
+.topbar-btn:hover{background:var(--bg4);}
+.topbar-btn svg{width:16px;height:16px;fill:var(--text2);}
+.notif-dot{position:absolute;top:5px;right:5px;width:7px;height:7px;
+  background:var(--red);border-radius:50%;border:2px solid var(--bg2);}
+
+.content{flex:1;padding:24px 28px;overflow-y:auto;}
+.content::-webkit-scrollbar{width:5px;}
+.content::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px;}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px;}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:18px 18px 14px;cursor:pointer;transition:border-color .15s,transform .15s;
+  position:relative;overflow:hidden;animation:rise .4s ease both;}
+.kpi-card:hover{border-color:var(--border2);transform:translateY(-1px);}
+.kpi-accent{position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--r-lg) var(--r-lg) 0 0;}
+.kpi-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;line-height:1.3;margin-bottom:14px;}
+.kpi-value{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--text);letter-spacing:-.04em;line-height:1;margin-bottom:8px;}
+.kpi-delta{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;}
+.delta-up{color:var(--green);} .delta-down{color:var(--red);} .delta-neu{color:var(--text3);}
+
+/* GRID */
+.grid-3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;margin-bottom:14px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.grid-3-1{display:grid;grid-template-columns:3fr 1fr;gap:14px;margin-bottom:14px;}
+
+/* PANELS */
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
+.panel-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+.panel-action{font-size:11px;color:var(--blue);font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:.03em;}
+.panel-body{padding:18px;}
+.chart-wrap{position:relative;width:100%;}
+
+/* REGION BARS */
+.region-list{display:flex;flex-direction:column;gap:12px;}
+.region-row{}
+.region-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+.region-name{font-size:12px;font-weight:600;color:var(--text);}
+.region-val{font-family:'IBM Plex Mono',monospace;font-size:12px;}
+.bar-track{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.4,0,.2,1);}
+
+/* ALERTS TABLE */
+.alert-table{width:100%;border-collapse:collapse;}
+.alert-table th{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--text3);text-align:left;padding:0 12px 10px;border-bottom:1px solid var(--border);}
+.alert-table td{padding:10px 12px;font-size:12px;color:var(--text2);
+  border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle;}
+.alert-table tr:last-child td{border-bottom:none;}
+.alert-table tr:hover td{background:rgba(255,255,255,.015);}
+.aname{font-weight:600;color:var(--text);font-size:13px;}
+.aloc{font-size:11px;color:var(--text3);margin-top:1px;}
+
+/* FEED */
+.feed{display:flex;flex-direction:column;}
+.feed-item{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+.feed-item:last-child{border-bottom:none;padding-bottom:0;}
+.feed-line{display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
+.feed-dot{width:8px;height:8px;border-radius:50%;border:2px solid;margin-top:2px;flex-shrink:0;}
+.feed-conn{width:1px;flex:1;min-height:12px;background:var(--border);margin-top:4px;}
+.feed-item:last-child .feed-conn{display:none;}
+.feed-txt{font-size:12px;color:var(--text2);line-height:1.5;flex:1;}
+.feed-txt strong{color:var(--text);font-weight:600;}
+.feed-time{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px;}
+
+/* MINI STATS */
+.mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
+.mini-stat{background:var(--bg2);padding:14px;}
+.mini-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.04em;line-height:1;}
+.mini-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:4px;}
+
+/* SKELETON */
+.skel{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);
+  background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px;}
+
+/* INDICATEURS ASBC */
+.ind-section{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;}
+.ind-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.ind-panel-head{padding:14px 18px 0;}
+.ind-panel-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px;}
+.ind-panel-body{padding:8px 18px 18px;}
+.ind-row{margin-bottom:16px;}
+.ind-row:last-child{margin-bottom:0;}
+.ind-row-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+.ind-row-label{font-size:12px;font-weight:600;color:var(--text);}
+.ind-row-val{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;}
+.ind-row-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:6px;}
+.ind-bar{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;}
+.ind-bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.ind-stacked{height:8px;border-radius:4px;overflow:hidden;display:flex;background:var(--bg4);}
+.ind-stacked > div{height:100%;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.ind-legend{display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;}
+.ind-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
+.ind-legend-dot{width:6px;height:6px;border-radius:2px;flex-shrink:0;}
+.ind-gauge{padding:14px;background:var(--bg3);border-radius:var(--r);margin-bottom:10px;}
+.ind-gauge:last-child{margin-bottom:0;}
+.ind-gauge-label{font-size:11px;font-weight:600;color:var(--text);margin-bottom:6px;}
+.ind-gauge-val{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.04em;line-height:1;}
+.ind-gauge-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);margin-top:6px;}
+@media(max-width:900px){.ind-section{grid-template-columns:1fr;}}
+
+/* FILTER BAR */
+.filter-bar{display:flex;align-items:center;gap:12px;padding:0 28px 16px;flex-wrap:wrap;}
+.filter-bar label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;display:block;}
+.filter-group{display:flex;flex-direction:column;}
+.btn-apply{padding:7px 16px;background:var(--green);border:none;border-radius:var(--r);
+  font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#0D1117;cursor:pointer;
+  transition:opacity .15s;align-self:flex-end;}
+.btn-apply:hover{opacity:.85;}
+.btn-reset{padding:7px 12px;background:transparent;border:1px solid var(--border);border-radius:var(--r);
+  font-size:11px;font-weight:600;color:var(--text3);cursor:pointer;align-self:flex-end;
+  transition:border-color .15s,color .15s;}
+.btn-reset:hover{border-color:var(--text2);color:var(--text2);}
+.pga-ms-dropdown::-webkit-scrollbar{width:4px;}
+.pga-ms-dropdown::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px;}
+
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR (dynamique via pga-layout.js) -->
+<aside class="sidebar" id="sidebar"></aside>
+
+<!-- MAIN -->
+<main class="main">
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="page-title">Tableau de bord</div>
+    </div>
+    <div class="topbar-right">
+      <div class="sync-pill"><div class="sync-dot"></div><span class="sync-txt" id="sync-txt">Synchronisé</span></div>
+      <div class="topbar-btn" onclick="chargerDonnees()" title="Rafraîchir">
+        <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+      </div>
+      <div class="topbar-btn" onclick="window.location.href='notifications.html'" style="position:relative">
+        <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <div class="notif-dot" id="notif-dot" style="display:none"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- BARRE DE FILTRES -->
+  <div class="filter-bar" id="filter-bar">
+    <div class="filter-group">
+      <label>Périodes</label>
+      <div id="periode-filter"></div>
+    </div>
+    <div class="filter-group">
+      <label>Régions</label>
+      <div id="region-filter"></div>
+    </div>
+    <div class="filter-group">
+      <label>Districts</label>
+      <div id="district-filter"></div>
+    </div>
+    <button class="btn-apply" onclick="chargerDonnees()">Appliquer</button>
+    <button class="btn-reset" onclick="clearFilters()">Réinitialiser</button>
+  </div>
+
+  <div class="content">
+
+    <!-- KPIs -->
+    <div class="kpi-row" id="kpi-row">
+      <!-- Skeletons -->
+      <div class="kpi-card" style="animation-delay:.05s"><div class="skel" style="height:12px;width:70%;margin-bottom:16px"></div><div class="skel" style="height:28px;width:50%;margin-bottom:10px"></div><div class="skel" style="height:10px;width:60%"></div></div>
+      <div class="kpi-card" style="animation-delay:.10s"><div class="skel" style="height:12px;width:70%;margin-bottom:16px"></div><div class="skel" style="height:28px;width:50%;margin-bottom:10px"></div><div class="skel" style="height:10px;width:60%"></div></div>
+      <div class="kpi-card" style="animation-delay:.15s"><div class="skel" style="height:12px;width:70%;margin-bottom:16px"></div><div class="skel" style="height:28px;width:50%;margin-bottom:10px"></div><div class="skel" style="height:10px;width:60%"></div></div>
+      <div class="kpi-card" style="animation-delay:.20s"><div class="skel" style="height:12px;width:70%;margin-bottom:16px"></div><div class="skel" style="height:28px;width:50%;margin-bottom:10px"></div><div class="skel" style="height:10px;width:60%"></div></div>
+      <div class="kpi-card" style="animation-delay:.25s"><div class="skel" style="height:12px;width:70%;margin-bottom:16px"></div><div class="skel" style="height:28px;width:50%;margin-bottom:10px"></div><div class="skel" style="height:10px;width:60%"></div></div>
+    </div>
+
+    <!-- Ligne 2 : Trend + Donut + Feed -->
+    <div class="grid-3">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Évolution 12 mois</div>
+          <div class="panel-action" onclick="window.location.href='rapports.html'">Rapports</div>
+        </div>
+        <div class="panel-body"><div class="chart-wrap" style="height:220px"><canvas id="trend-chart"></canvas></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Statut ASBC</div></div>
+        <div class="panel-body" style="display:flex;flex-direction:column;align-items:center;gap:16px">
+          <div style="position:relative;width:120px;height:120px">
+            <canvas id="donut-chart" width="120" height="120"></canvas>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+              <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.04em" id="donut-total">—</div>
+              <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:1px">total</div>
+            </div>
+          </div>
+          <div style="width:100%;display:flex;flex-direction:column;gap:7px" id="donut-legend"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Activité récente</div></div>
+        <div class="panel-body" style="padding-top:10px"><div class="feed" id="feed"></div></div>
+      </div>
+    </div>
+
+    <!-- Ligne 3 : Régions + Alertes prioritaires -->
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Fonctionnalité par région</div>
+          <div class="panel-action" onclick="window.location.href='cartographie.html'">Carte</div>
+        </div>
+        <div class="panel-body"><div class="region-list" id="region-list"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Alertes prioritaires</div>
+          <div class="panel-action" onclick="window.location.href='notifications.html'">Tout voir</div>
+        </div>
+        <table class="alert-table">
+          <thead><tr>
+            <th>ASBC / Localisation</th><th>Type</th><th>Statut</th><th>Délai</th>
+          </tr></thead>
+          <tbody id="alertes-tbody"><tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3)">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Ligne 3b : Indicateurs ASBC -->
+    <div class="ind-section" id="ind-section"></div>
+
+    <!-- Ligne 4 : Paiements + Mini stats -->
+    <div class="grid-3-1">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Paiements — 12 mois</div>
+          <div class="panel-action" onclick="window.location.href='paiements.html'">Détail</div>
+        </div>
+        <div class="panel-body"><div class="chart-wrap" style="height:190px"><canvas id="pay-chart"></canvas></div></div>
+      </div>
+      <div class="panel" style="overflow:hidden">
+        <div class="panel-head"><div class="panel-title">Indicateurs</div></div>
+        <div class="mini-stats" id="mini-stats">
+          <div class="mini-stat"><div class="mini-val skel" style="height:20px;width:50px"></div><div class="mini-lbl">Promptitude</div></div>
+          <div class="mini-stat"><div class="mini-val skel" style="height:20px;width:50px"></div><div class="mini-lbl">Couverture</div></div>
+          <div class="mini-stat"><div class="mini-val skel" style="height:20px;width:50px"></div><div class="mini-lbl">Abandon</div></div>
+          <div class="mini-stat"><div class="mini-val skel" style="height:20px;width:50px"></div><div class="mini-lbl">Féminin</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// ── STATE ────────────────────────────────────────────────────────────────────
+let trendChart = null, donutChart = null, payChart = null;
+let periodeSelect = null, regionSelect = null, districtSelect = null;
+const fmt = PGA_UI.fmt;
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const u = await PGA_LAYOUT.init('dashboard', 'Tableau de bord');
+  if (!u) return;
+
+  // Multi-select périodes (12 derniers mois, mois courant pré-sélectionné)
+  const moisItems = [];
+  const today = new Date();
+  for (let i = 0; i < 12; i++) {
+    let year = today.getFullYear();
+    let month = today.getMonth() - i;
+    while (month < 0) { month += 12; year--; }
+    const d   = new Date(year, month, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    moisItems.push({ id: val, nom: lbl });
+  }
+  periodeSelect = PGA_UI.multiSelect(document.getElementById('periode-filter'), {
+    placeholder: 'Sélectionner les mois',
+  });
+  periodeSelect.setItems(moisItems);
+
+  // Multi-selects géographiques
+  regionSelect = PGA_UI.multiSelect(document.getElementById('region-filter'), {
+    placeholder: 'Toutes les régions',
+    onChange: async (selectedIds) => {
+      if (selectedIds.length === 0) {
+        districtSelect.setItems([]);
+      } else {
+        const results = await Promise.all(selectedIds.map(id => PGA_API.geo.districtsByRegion(id)));
+        districtSelect.setItems(results.flat());
+      }
+    },
+  });
+  districtSelect = PGA_UI.multiSelect(document.getElementById('district-filter'), {
+    placeholder: 'Tous les districts',
+  });
+
+  // Charger les régions
+  try {
+    const regions = await PGA_API.geo.regions();
+    regionSelect.setItems(regions);
+  } catch {}
+
+  await chargerDonnees();
+});
+
+// ── CHARGE TOUTES LES DONNÉES ────────────────────────────────────────────────
+async function chargerDonnees() {
+  document.getElementById('sync-txt').textContent = 'Chargement…';
+
+  // Périodes sélectionnées (ou mois courant par défaut)
+  const periodes = periodeSelect?.getValues() || [];
+  const params = {};
+  if (periodes.length > 1) params['periodes[]'] = periodes;
+  else params.periode = periodes[0] || new Date().toISOString().slice(0, 7);
+
+  // Filtres géographiques multi-select
+  const rIds = regionSelect?.getValues() || [];
+  const dIds = districtSelect?.getValues() || [];
+  if (dIds.length) params['district_ids[]'] = dIds;
+  else if (rIds.length) params['region_ids[]'] = rIds;
+
+  try {
+    const [tableau, cnibData, notifs] = await Promise.all([
+      PGA_API.rapports.tableauBord(params),
+      PGA_API.rapports.cnib(),
+      PGA_API.notifications.nonLues(),
+    ]);
+
+    renderKpis(tableau);
+    renderTrendChart(tableau.evolution);
+    renderDonut(tableau.asbc, tableau.statuts);
+    renderRegions(tableau.par_region);
+    renderAlertesPrioritaires(tableau.asbc, cnibData);
+    renderIndicateursAsbc(tableau);
+    renderPayChart(tableau.evolution);
+    renderMiniStats(tableau);
+    renderFeed(tableau);
+
+    // Badge ASBC en attente de validation
+    const attente = tableau.asbc?.en_attente_validation || 0;
+    const badgeAsbc = document.getElementById('badge-attente');
+    if (attente > 0) { badgeAsbc.textContent = attente; badgeAsbc.style.display = 'inline'; }
+    else             { badgeAsbc.style.display = 'none'; }
+
+    // Badge Paiements en échec
+    const echecs = tableau.paiements?.nb_echecs || 0;
+    const badgePay = document.getElementById('badge-paiements');
+    if (echecs > 0) { badgePay.textContent = echecs; badgePay.style.display = 'inline'; }
+    else            { badgePay.style.display = 'none'; }
+
+    // Notifications
+    if (notifs.total > 0) document.getElementById('notif-dot').style.display = 'block';
+
+    const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('sync-txt').textContent = `Synchronisé · ${now}`;
+
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur de chargement', 'error');
+    document.getElementById('sync-txt').textContent = 'Erreur';
+  }
+}
+
+// ── RENDER KPIs ──────────────────────────────────────────────────────────────
+function renderKpis(data) {
+  const a = data.asbc || {}, s = data.statuts || {}, p = data.paiements || {};
+  const kpis = [
+    { label: 'ASBC actifs',      val: fmt.nb(a.total_actifs),            accent: '#2ECC7A', delta: null },
+    { label: 'Fonctionnalité',   val: fmt.pct(s.taux_fonctionnalite),    accent: '#2ECC7A', delta: `${fmt.nb(s.nb_fonctionnels)} / ${fmt.nb(s.total_asbc)}`, up: true },
+    { label: 'Couverture villages', val: fmt.pct(a.taux_couverture),     accent: '#5B9CF6', delta: `${fmt.nb(a.villages_couverts)} / ${fmt.nb(a.total_villages)}`, up: true },
+    { label: 'CNIB à surveiller', val: fmt.nb((a.cnib_expires||0) + (a.cnib_expiration_proche||0)), accent: '#F0A030', delta: `Expirés : ${fmt.nb(a.cnib_expires)}`, up: false },
+    { label: 'Paiements en échec', val: fmt.nb(p.nb_echecs),             accent: '#E8524A', delta: `${fmt.pct(p.taux_echec)} du total`, up: false },
+  ];
+
+  document.getElementById('kpi-row').innerHTML = kpis.map((k, i) => `
+    <div class="kpi-card" style="animation-delay:${.05*(i+1)}s">
+      <div class="kpi-accent" style="background:${k.accent}"></div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.val}</div>
+      ${k.delta ? `<div class="kpi-delta ${k.up === true ? 'delta-up' : k.up === false ? 'delta-down' : 'delta-neu'}">${k.delta}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+// ── TREND CHART ──────────────────────────────────────────────────────────────
+function renderTrendChart(evolution) {
+  if (!evolution?.length) return;
+  const labels = evolution.map(e => e.label || e.periode);
+  const fonct  = evolution.map(e => e.taux_fonctionnalite || 0);
+  const pay    = evolution.map(e => e.taux_paiement || 0);
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trend-chart'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Fonctionnalité', data: fonct, borderColor: '#2ECC7A', backgroundColor: 'rgba(46,204,122,.07)',
+        fill: true, tension: .4, borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#2ECC7A',
+        pointBorderColor: '#0D1117', pointBorderWidth: 2 },
+      { label: 'Paiements', data: pay, borderColor: '#5B9CF6', backgroundColor: 'rgba(91,156,246,.05)',
+        fill: true, tension: .4, borderWidth: 2, borderDash: [4,4], pointRadius: 3,
+        pointBackgroundColor: '#5B9CF6', pointBorderColor: '#0D1117', pointBorderWidth: 2 },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#1E2530', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
+          titleColor: '#8A97AC', bodyColor: '#E8EDF5',
+          titleFont: { family: 'IBM Plex Mono', size: 11 },
+          bodyFont: { family: 'IBM Plex Mono', size: 12, weight: '500' },
+          padding: 10, callbacks: { label: c => ` ${c.dataset.label} : ${c.parsed.y.toFixed(1)}%` } }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#5A6578', font: { family:'IBM Plex Mono', size:9 } }, border: { display: false } },
+        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,.04)' },
+          ticks: { color: '#5A6578', font: { family:'IBM Plex Mono', size:9 }, callback: v => v + '%', stepSize: 25 },
+          border: { display: false } }
+      }
+    }
+  });
+}
+
+// ── DONUT — Statut ASBC (Fonctionnel / Non-fonctionnel / Désactivé) ──────────
+function renderDonut(a, s) {
+  if (!a || !s) return;
+  const fonctionnels    = s.nb_fonctionnels || 0;
+  const nonFonctionnels = Math.max(0, (s.total_asbc || 0) - fonctionnels);
+  const desactives      = a.total_inactifs  || 0;
+  const total           = fonctionnels + nonFonctionnels + desactives;
+
+  document.getElementById('donut-total').textContent = fmt.nb(a.total_actifs);
+
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(document.getElementById('donut-chart'), {
+    type: 'doughnut',
+    data: { datasets: [{ data: [fonctionnels, nonFonctionnels, desactives],
+      backgroundColor: ['#2ECC7A', '#F0A030', '#E8524A'],
+      borderColor: '#161B24', borderWidth: 3 }] },
+    options: { responsive: false, cutout: '72%',
+      plugins: { legend: { display: false },
+        tooltip: { backgroundColor: '#1E2530', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
+          titleColor: '#8A97AC', bodyColor: '#E8EDF5', padding: 8,
+          callbacks: { label: c => ` ${c.label} : ${fmt.nb(c.parsed)}` } } },
+      animation: { animateRotate: true, duration: 1000 } }
+  });
+
+  document.getElementById('donut-legend').innerHTML = [
+    { color: '#2ECC7A', label: 'Fonctionnels',     val: fmt.nb(fonctionnels) },
+    { color: '#F0A030', label: 'Non-fonctionnels', val: fmt.nb(nonFonctionnels) },
+    { color: '#E8524A', label: 'Désactivés',       val: fmt.nb(desactives) },
+  ].map(l => `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+      <div style="display:flex;align-items:center;gap:7px;color:var(--text2)">
+        <div style="width:8px;height:8px;border-radius:2px;background:${l.color};flex-shrink:0"></div>
+        ${l.label}
+      </div>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text)">${l.val}</span>
+    </div>
+  `).join('');
+}
+
+// ── RÉGIONS ───────────────────────────────────────────────────────────────────
+function renderRegions(regions) {
+  if (!regions?.length) { document.getElementById('region-list').innerHTML = '<p style="color:var(--text3);font-size:12px">Aucune donnée</p>'; return; }
+  const sorted = [...regions].filter(Boolean).sort((a,b) => b.taux_fonctionnalite - a.taux_fonctionnalite);
+  document.getElementById('region-list').innerHTML = sorted.map(r => {
+    const taux = r.taux_fonctionnalite || 0;
+    const color = taux >= 80 ? '#2ECC7A' : taux >= 60 ? '#F0A030' : '#E8524A';
+    return `
+      <div class="region-row">
+        <div class="region-meta">
+          <span class="region-name">${r.region}</span>
+          <span class="region-val" style="color:${color}">${taux.toFixed(1)}%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${taux}%;background:${color}"></div></div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── ALERTES PRIORITAIRES (ASBC en attente + CNIB expirés) ─────────────────────
+function renderAlertesPrioritaires(asbcData, cnibData) {
+  const tbody = document.getElementById('alertes-tbody');
+  const rows  = [];
+
+  // 1. ASBC en attente de validation (si non nul, on affiche une ligne synthétique)
+  const enAttente = asbcData?.en_attente_validation || 0;
+  if (enAttente > 0) {
+    rows.push({
+      nom:    `${fmt.nb(enAttente)} ASBC en attente`,
+      loc:    'Validation DSC requise',
+      type:   'Validation',
+      badge:  `<span style="background:rgba(91,156,246,.15);color:#5B9CF6;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">EN ATTENTE</span>`,
+      delai:  '—',
+      href:   'asbc.html?statut=en_attente',
+    });
+  }
+
+  // 2. CNIB expirés (jusqu'à 5)
+  (cnibData?.expires || []).slice(0, 5).forEach(a => {
+    rows.push({
+      nom:   a.nom_complet,
+      loc:   `${a.csps || '—'} · ${a.district || '—'}`,
+      type:  'CNIB expiré',
+      badge: `<span style="background:rgba(232,82,74,.15);color:#E8524A;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">EXPIRÉ</span>`,
+      delai: `<span style="color:var(--red);font-family:'IBM Plex Mono',monospace;font-size:11px">${a.expiration}</span>`,
+      href:  `asbc-detail.html?id=${a.code_asbc}`,
+    });
+  });
+
+  // 3. CNIB proche d'expiration (jusqu'à 3 si place)
+  const reste = 8 - rows.length;
+  (cnibData?.expiration_proche || []).slice(0, reste).forEach(a => {
+    rows.push({
+      nom:   a.nom_complet,
+      loc:   `${a.csps || '—'} · ${a.district || '—'}`,
+      type:  'CNIB < 3 mois',
+      badge: `<span style="background:rgba(240,160,48,.15);color:#F0A030;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">À RENOUVELER</span>`,
+      delai: `<span style="color:var(--amber);font-family:'IBM Plex Mono',monospace;font-size:11px">${a.jours}j</span>`,
+      href:  `asbc-detail.html?id=${a.code_asbc}`,
+    });
+  });
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text3);font-size:12px">✅ Aucune alerte prioritaire</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
+    <tr style="cursor:pointer" onclick="window.location.href='${r.href}'">
+      <td><div class="aname">${r.nom}</div><div class="aloc">${r.loc}</div></td>
+      <td style="font-size:11px;color:var(--text3)">${r.type}</td>
+      <td>${r.badge}</td>
+      <td>${r.delai}</td>
+    </tr>
+  `).join('');
+}
+
+// ── PAY CHART ─────────────────────────────────────────────────────────────────
+function renderPayChart(evolution) {
+  if (!evolution?.length) return;
+  const labels = evolution.map(e => e.label || e.periode);
+  const pays   = evolution.map(e => e.taux_paiement || 0);
+  const manque = pays.map(v => Math.max(0, 100 - v));
+
+  if (payChart) payChart.destroy();
+  payChart = new Chart(document.getElementById('pay-chart'), {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Payés (%)',    data: pays,  backgroundColor: 'rgba(46,204,122,.7)',  borderRadius: 4, barPercentage: .7 },
+      { label: 'Manquants (%)',data: manque,backgroundColor: 'rgba(232,82,74,.4)',   borderRadius: 4, barPercentage: .7 },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#1E2530', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
+          titleColor: '#8A97AC', bodyColor: '#E8EDF5', padding: 10 }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { color: '#5A6578', font: { family:'IBM Plex Mono', size:9 } }, border: { display: false } },
+        y: { stacked: true, max: 100, grid: { color: 'rgba(255,255,255,.04)' },
+          ticks: { color: '#5A6578', font: { family:'IBM Plex Mono', size:9 }, callback: v => v + '%', maxTicksLimit: 5 },
+          border: { display: false } }
+      }
+    }
+  });
+}
+
+// ── INDICATEURS ASBC ─────────────────────────────────────────────────────────
+function renderIndicateursAsbc(data) {
+  const a = data.asbc || {};
+  const actifs = a.total_actifs || 0;
+  const inactifs = a.total_inactifs || 0;
+  const total = actifs + inactifs;
+  const vTotal = a.total_villages || 0;
+
+  // Villages
+  const vSans = a.villages_sans_asbc || 0;
+  const v1 = a.villages_1_asbc || 0;
+  const v2e = a.villages_2_asbc || 0;
+  const v2p = a.villages_2plus_asbc || 0;
+  const pVS = vTotal > 0 ? (vSans / vTotal * 100).toFixed(1) : '0.0';
+  const pV1 = vTotal > 0 ? (v1 / vTotal * 100).toFixed(1) : '0.0';
+  const pV2e = vTotal > 0 ? (v2e / vTotal * 100).toFixed(1) : '0.0';
+  const pV2p = vTotal > 0 ? (v2p / vTotal * 100).toFixed(1) : '0.0';
+
+  // Genre
+  const fem = a.asbc_feminin || 0, masc = a.asbc_masculin || 0;
+  const pF = actifs > 0 ? (fem / actifs * 100).toFixed(1) : '0.0';
+  const pM = actifs > 0 ? (masc / actifs * 100).toFixed(1) : '0.0';
+
+  // Distance
+  const m5 = a.asbc_moins_5km || 0, p5 = a.asbc_plus_5km || 0;
+  const pM5 = actifs > 0 ? (m5 / actifs * 100).toFixed(1) : '0.0';
+  const pP5 = actifs > 0 ? (p5 / actifs * 100).toFixed(1) : '0.0';
+
+  // Activité
+  const abandons = a.abandons || 0;
+  const tA = total > 0 ? (abandons / total * 100).toFixed(1) : '0.0';
+  const tI = total > 0 ? (inactifs / total * 100).toFixed(1) : '0.0';
+
+  document.getElementById('ind-section').innerHTML = `
+    <div class="ind-panel">
+      <div class="ind-panel-head"><div class="ind-panel-title">Répartition villages</div></div>
+      <div class="ind-panel-body">
+        <div class="ind-row">
+          <div class="ind-row-head">
+            <span class="ind-row-label">Sans ASBC</span>
+            <span class="ind-row-val" style="color:var(--red)">${pVS}%</span>
+          </div>
+          <div class="ind-row-meta">${fmt.nb(vSans)} / ${fmt.nb(vTotal)} villages</div>
+          <div class="ind-bar"><div class="ind-bar-fill" style="width:${pVS}%;background:var(--red)"></div></div>
+        </div>
+        <div class="ind-row">
+          <div class="ind-row-head">
+            <span class="ind-row-label">1 seul ASBC</span>
+            <span class="ind-row-val" style="color:var(--amber)">${pV1}%</span>
+          </div>
+          <div class="ind-row-meta">${fmt.nb(v1)} / ${fmt.nb(vTotal)} villages</div>
+          <div class="ind-bar"><div class="ind-bar-fill" style="width:${pV1}%;background:var(--amber)"></div></div>
+        </div>
+        <div class="ind-row">
+          <div class="ind-row-head">
+            <span class="ind-row-label">2 ASBC (couvert)</span>
+            <span class="ind-row-val" style="color:var(--green)">${pV2e}%</span>
+          </div>
+          <div class="ind-row-meta">${fmt.nb(v2e)} / ${fmt.nb(vTotal)} villages</div>
+          <div class="ind-bar"><div class="ind-bar-fill" style="width:${pV2e}%;background:var(--green)"></div></div>
+        </div>
+        <div class="ind-row">
+          <div class="ind-row-head">
+            <span class="ind-row-label">3+ ASBC</span>
+            <span class="ind-row-val" style="color:var(--blue)">${(vTotal > 0 ? ((v2p - v2e) / vTotal * 100).toFixed(1) : '0.0')}%</span>
+          </div>
+          <div class="ind-row-meta">${fmt.nb(v2p - v2e)} / ${fmt.nb(vTotal)} villages</div>
+          <div class="ind-bar"><div class="ind-bar-fill" style="width:${vTotal > 0 ? ((v2p - v2e) / vTotal * 100).toFixed(1) : 0}%;background:var(--blue)"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ind-panel">
+      <div class="ind-panel-head"><div class="ind-panel-title">Profil des ASBC actifs</div></div>
+      <div class="ind-panel-body">
+        <div class="ind-row">
+          <div class="ind-row-head"><span class="ind-row-label">Genre</span></div>
+          <div class="ind-stacked">
+            <div style="width:${pF}%;background:#A855F7"></div>
+            <div style="width:${pM}%;background:var(--blue)"></div>
+          </div>
+          <div class="ind-legend">
+            <div class="ind-legend-item"><div class="ind-legend-dot" style="background:#A855F7"></div>F\u00e9minin : ${fmt.nb(fem)} (${pF}%)</div>
+            <div class="ind-legend-item"><div class="ind-legend-dot" style="background:var(--blue)"></div>Masculin : ${fmt.nb(masc)} (${pM}%)</div>
+          </div>
+        </div>
+        <div class="ind-row" style="margin-top:20px">
+          <div class="ind-row-head"><span class="ind-row-label">Distance du CSPS</span></div>
+          <div class="ind-stacked">
+            <div style="width:${pM5}%;background:var(--green)"></div>
+            <div style="width:${pP5}%;background:var(--amber)"></div>
+          </div>
+          <div class="ind-legend">
+            <div class="ind-legend-item"><div class="ind-legend-dot" style="background:var(--green)"></div>&lt; 5 km : ${fmt.nb(m5)} (${pM5}%)</div>
+            <div class="ind-legend-item"><div class="ind-legend-dot" style="background:var(--amber)"></div>&ge; 5 km : ${fmt.nb(p5)} (${pP5}%)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ind-panel">
+      <div class="ind-panel-head"><div class="ind-panel-title">Indicateurs d'activit\u00e9</div></div>
+      <div class="ind-panel-body">
+        <div class="ind-gauge">
+          <div class="ind-gauge-label">Taux d'abandon</div>
+          <div class="ind-gauge-val" style="color:var(--red)">${tA}%</div>
+          <div class="ind-gauge-meta">${fmt.nb(abandons)} / ${fmt.nb(total)} ASBC</div>
+          <div class="ind-bar" style="margin-top:8px"><div class="ind-bar-fill" style="width:${Math.min(tA,100)}%;background:var(--red)"></div></div>
+        </div>
+        <div class="ind-gauge">
+          <div class="ind-gauge-label">ASBC en fin d'activit\u00e9</div>
+          <div class="ind-gauge-val" style="color:var(--amber)">${tI}%</div>
+          <div class="ind-gauge-meta">${fmt.nb(inactifs)} / ${fmt.nb(total)} ASBC</div>
+          <div class="ind-bar" style="margin-top:8px"><div class="ind-bar-fill" style="width:${Math.min(tI,100)}%;background:var(--amber)"></div></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── MINI STATS ────────────────────────────────────────────────────────────────
+function renderMiniStats(data) {
+  const s = data.statuts || {}, a = data.asbc || {}, p = data.paiements || {};
+  const total = (a.total_actifs || 0) + (a.total_inactifs || 0);
+  const tauxAbandon = total > 0 ? parseFloat(((a.abandons || 0) / total * 100).toFixed(1)) : 0;
+  const pctFem = a.total_actifs > 0 ? parseFloat(((a.asbc_feminin || 0) / a.total_actifs * 100).toFixed(1)) : 0;
+  document.getElementById('mini-stats').innerHTML = [
+    { val: fmt.pct(s.taux_promptitude), label: 'Promptitude', color: '#2ECC7A' },
+    { val: fmt.pct(a.taux_couverture),  label: 'Couverture',  color: '#5B9CF6' },
+    { val: fmt.pct(tauxAbandon),        label: 'Abandon',     color: '#F0A030' },
+    { val: fmt.pct(pctFem),             label: 'F\u00e9minin',     color: '#A855F7' },
+  ].map(m => `
+    <div class="mini-stat">
+      <div class="mini-val" style="color:${m.color}">${m.val}</div>
+      <div class="mini-lbl">${m.label}</div>
+    </div>
+  `).join('');
+}
+
+// ── FEED ──────────────────────────────────────────────────────────────────────
+function renderFeed(data) {
+  // Construire un feed synthétique depuis les données du tableau de bord
+  const s = data.statuts || {}, p = data.paiements || {}, a = data.asbc || {};
+  const periode = data.periode;
+  const events = [
+    { color:'#2ECC7A', text: `<strong>${fmt.nb(s.nb_fonctionnels)}</strong> ASBC fonctionnels validés pour ${fmt.periode(periode)}.`, time: 'Ce mois' },
+    { color:'#5B9CF6', text: `Taux de couverture villages : <strong>${fmt.pct(a.taux_couverture)}</strong> (${fmt.nb(a.villages_couverts)} / ${fmt.nb(a.total_villages)}).`, time: periode },
+    { color: p.nb_echecs > 0 ? '#F0A030' : '#2ECC7A', text: `Paiements : <strong>${fmt.nb(p.nb_payes)}</strong> réussis, <strong>${fmt.nb(p.nb_echecs)}</strong> en échec.`, time: periode },
+    { color:'#E8524A', text: `<strong>${fmt.nb(a.cnib_expires)}</strong> CNIB expirés — action requise.`, time: 'Alerte' },
+    { color:'#5A6578', text: `Taux de promptitude de saisie : <strong>${fmt.pct(s.taux_promptitude)}</strong>.`, time: periode },
+  ];
+  document.getElementById('feed').innerHTML = events.map(ev => `
+    <div class="feed-item">
+      <div class="feed-line">
+        <div class="feed-dot" style="border-color:${ev.color};background:${ev.color}22"></div>
+        <div class="feed-conn"></div>
+      </div>
+      <div style="flex:1">
+        <div class="feed-txt">${ev.text}</div>
+        <div class="feed-time">${ev.time}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function roleLabel(r) {
+  const m = { admin_dsc:'Admin DSC', superviseur_dsc:'Superviseur DSC', drs:'Dir. Régional', rps:'Responsable District', icp:'Infirmier Chef de Poste', ptf:'Partenaire Technique' };
+  return m[r] || r;
+}
+function initiales(nom) {
+  if (!nom) return '?';
+  return nom.split(' ').filter(Boolean).slice(0,2).map(p => p[0]).join('').toUpperCase();
+}
+function clearFilters() {
+  periodeSelect?.clear();
+  regionSelect?.clear();
+  districtSelect?.clear();
+  chargerDonnees();
+}
+async function deconnecter() {
+  const ok = await PGA_UI.confirmer('Déconnexion', 'Voulez-vous vous déconnecter ?', { labelOk: 'Déconnexion', danger: true });
+  if (ok) { await PGA_API.auth.deconnexion(); window.location.href = 'login.html'; }
+}
+</script>
+</body>
+</html>

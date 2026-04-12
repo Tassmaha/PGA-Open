@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Rapports</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/pga-shared.css">
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<script src="../js/jspdf.min.js"></script>
+<script src="../js/jspdf-autotable.min.js"></script>
+<style>
+/* ── RAPPORT CARDS ── */
+.rapport-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+.rapport-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 20px; cursor: pointer; transition: all .15s; position: relative; overflow: hidden;
+  animation: rise .4s ease both;
+}
+.rapport-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.rapport-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.rc-icon {
+  width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center;
+  justify-content: center; margin-bottom: 14px;
+}
+.rc-icon svg { width: 22px; height: 22px; }
+.rc-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+.rc-desc  { font-size: 12px; color: var(--text3); line-height: 1.5; }
+.rc-badge {
+  position: absolute; top: 14px; right: 14px;
+  padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace; letter-spacing: .04em;
+}
+
+/* ── VUE CNIB ── */
+.cnib-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+
+/* ── BARRE DE RECHERCHE + FILTRE ── */
+.filter-bar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 14px 18px;
+}
+
+/* ── PAGINATION ── */
+.pagination-wrap { min-height: 46px; }
+
+/* ── TABLE CNIB colorée ── */
+.cnib-urgent td  { background: rgba(232,82,74,.03); }
+.cnib-proche td  { background: rgba(240,160,48,.03); }
+
+/* ── RAPPORT PAIEMENTS ── */
+.pai-kpi-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 16px; }
+.pai-kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px; overflow: hidden; position: relative; animation: rise .3s ease both; }
+.pai-kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.pai-kpi-label { font-size:10px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.1em; margin-bottom:8px; }
+.pai-kpi-val { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; letter-spacing:-.04em; }
+/* Boutons filtre statut paiements */
+.pai-statut-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.pai-statut-btn[data-val="reussi"].active    { background:rgba(46,204,122,.2);  color:var(--green); border-color:var(--green); }
+.pai-statut-btn[data-val="echec"].active     { background:rgba(232,82,74,.2);   color:var(--red);   border-color:var(--red); }
+.pai-statut-btn[data-val="rembourse"].active { background:rgba(240,160,48,.2);  color:var(--amber); border-color:var(--amber); }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar"></aside>
+<main class="main">
+  <header class="topbar" id="topbar"></header>
+  <div class="content">
+
+    <!-- NAVIGATION VUE -->
+    <div class="tabs" style="margin-bottom:20px">
+      <div class="tab active" data-vue="accueil"       onclick="changerVue(this)">Accueil</div>
+      <div class="tab"        data-vue="asbc"          onclick="changerVue(this)">Liste ASBC</div>
+      <div class="tab"        data-vue="fonctionnalite"onclick="changerVue(this)">Fonctionnalité</div>
+      <div class="tab"        data-vue="cnib"          onclick="changerVue(this)">CNIB</div>
+      <div class="tab"        data-vue="inactifs"      onclick="changerVue(this)">ASBC inactifs</div>
+      <div class="tab"        data-vue="paiements"     onclick="changerVue(this)">Rapport paiements</div>
+    </div>
+
+    <!-- ══ VUE ACCUEIL ══ -->
+    <div id="vue-accueil">
+      <div class="rapport-grid">
+        <div class="rapport-card" style="animation-delay:.05s" onclick="changerVue(document.querySelector('[data-vue=asbc]'))">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--green)"></div>
+          <div class="rc-icon" style="background:rgba(46,204,122,.1)"><svg viewBox="0 0 24 24" fill="var(--green)"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div>
+          <div class="rc-title">Liste des ASBC actifs</div>
+          <div class="rc-desc">Export complet avec localisation, CNIB, téléphone, distance FS.</div>
+          <span class="rc-badge" style="background:rgba(46,204,122,.1);color:var(--green)">CSV · JSON</span>
+        </div>
+        <div class="rapport-card" style="animation-delay:.10s" onclick="changerVue(document.querySelector('[data-vue=cnib]'))">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--amber)"></div>
+          <div class="rc-icon" style="background:rgba(240,160,48,.1)"><svg viewBox="0 0 24 24" fill="var(--amber)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
+          <div class="rc-title">Suivi CNIB</div>
+          <div class="rc-desc">CNIB expirés et expirant dans moins de 3 mois. Alertes ICP.</div>
+          <span class="rc-badge" style="background:rgba(240,160,48,.1);color:var(--amber)" id="badge-cnib">—</span>
+        </div>
+        <div class="rapport-card" style="animation-delay:.15s" onclick="changerVue(document.querySelector('[data-vue=fonctionnalite]'))">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--blue)"></div>
+          <div class="rc-icon" style="background:rgba(91,156,246,.1)"><svg viewBox="0 0 24 24" fill="var(--blue)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+          <div class="rc-title">Fonctionnalité mensuelle</div>
+          <div class="rc-desc">Taux de fonctionnalité et promptitude par district et région.</div>
+          <span class="rc-badge" style="background:rgba(91,156,246,.1);color:var(--blue)">Par période</span>
+        </div>
+        <div class="rapport-card" style="animation-delay:.20s" onclick="changerVue(document.querySelector('[data-vue=inactifs]'))">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--red)"></div>
+          <div class="rc-icon" style="background:rgba(232,82,74,.1)"><svg viewBox="0 0 24 24" fill="var(--red)"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg></div>
+          <div class="rc-title">ASBC désactivés</div>
+          <div class="rc-desc">Historique des désactivations avec motifs et dates.</div>
+          <span class="rc-badge" style="background:rgba(232,82,74,.1);color:var(--red)">Historique</span>
+        </div>
+        <div class="rapport-card" style="animation-delay:.25s" onclick="exporterAsbc()">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--text3)"></div>
+          <div class="rc-icon" style="background:var(--bg3)"><svg viewBox="0 0 24 24" fill="var(--text2)"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg></div>
+          <div class="rc-title">Export rapide CSV</div>
+          <div class="rc-desc">Télécharger la liste complète des ASBC actifs en un clic.</div>
+          <span class="rc-badge" style="background:var(--bg3);color:var(--text3)">↓ CSV</span>
+        </div>
+        <div class="rapport-card" style="animation-delay:.30s" onclick="exporterAsbcFonctionnels()">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--green)"></div>
+          <div class="rc-icon" style="background:rgba(46,204,122,.1)"><svg viewBox="0 0 24 24" fill="var(--green)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+          <div class="rc-title">ASBC Fonctionnels du mois</div>
+          <div class="rc-desc" id="rc-fonct-desc">Liste des ASBC fonctionnels pour le mois en cours avec statut de validation.</div>
+          <span class="rc-badge" style="background:rgba(46,204,122,.1);color:var(--green)">↓ CSV · Mois courant</span>
+        </div>
+        <div class="rapport-card" style="animation-delay:.35s" onclick="window.location.href='dashboard.html'">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--text3)"></div>
+          <div class="rc-icon" style="background:var(--bg3)"><svg viewBox="0 0 24 24" fill="var(--text2)"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>
+          <div class="rc-title">Tableau de bord</div>
+          <div class="rc-desc">Retour aux indicateurs globaux et graphiques de tendance.</div>
+        </div>
+        <div class="rapport-card" style="animation-delay:.40s" onclick="changerVue(document.querySelector('[data-vue=paiements]'))">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#5B9CF6"></div>
+          <div class="rc-icon" style="background:rgba(91,156,246,.1)"><svg viewBox="0 0 24 24" fill="var(--blue)"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg></div>
+          <div class="rc-title">Rapport paiements</div>
+          <div class="rc-desc">Réussis, échecs, remboursés — filtres par statut, période et région.</div>
+          <span class="rc-badge" style="background:rgba(91,156,246,.1);color:var(--blue)">Par région</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ VUE LISTE ASBC ══ -->
+    <div id="vue-asbc" style="display:none">
+      <div class="filter-bar">
+        <div class="form-field" style="margin:0">
+          <select id="asbc-filtre-statut" onchange="onFiltreAsbcChange()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 12px;font-size:12px;color:var(--text);outline:none">
+            <option value="actif">Actifs uniquement</option>
+            <option value="inactif">Inactifs uniquement</option>
+            <option value="fonctionnel">Fonctionnels uniquement</option>
+          </select>
+        </div>
+        <div id="asbc-filtre-periode-wrap" style="display:none">
+          <div id="asbc-filtre-periode-multi"></div>
+        </div>
+        <div id="asbc-geo-mini" style="display:flex;gap:8px"></div>
+        <button class="btn-secondary btn-sm" style="margin-left:auto" onclick="exporterAsbc()">↓ CSV</button>
+        <button class="btn-secondary btn-sm" onclick="exporterAsbc('pdf')" style="color:var(--red)">↓ PDF</button>
+      </div>
+      <div class="panel">
+        <table class="data-table">
+          <thead id="asbc-list-thead"><tr>
+            <th>Code</th><th>Nom complet</th><th>Localisation</th><th>CNIB</th><th>Téléphone</th><th>Distance</th><th>Recrutement</th>
+          </tr></thead>
+          <tbody id="asbc-list-tbody"><tr><td colspan="7" class="empty-state"><span class="ico">⏳</span><p>Chargement…</p></td></tr></tbody>
+        </table>
+        <div class="pagination-wrap" id="pagination-asbc"></div>
+      </div>
+    </div>
+
+    <!-- ══ VUE FONCTIONNALITÉ ══ -->
+    <div id="vue-fonctionnalite" style="display:none">
+      <div class="filter-bar">
+        <div class="form-field" style="margin:0">
+          <label style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;display:block">Période</label>
+          <div id="fonct-periode-multi"></div>
+        </div>
+      </div>
+      <div id="fonct-content"></div>
+    </div>
+
+    <!-- ══ VUE CNIB ══ -->
+    <div id="vue-cnib" style="display:none">
+      <div class="cnib-grid" id="cnib-summary"></div>
+      <div class="panel" style="margin-bottom:14px">
+        <div class="panel-head">
+          <div class="panel-title" style="color:var(--red)">⚠ CNIB expirés</div>
+          <div class="panel-action" onclick="exporterCnib('expires')">↓ CSV</div> <div class="panel-action" onclick="exporterCnib('expires','pdf')" style="color:var(--red)">↓ PDF</div>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>ASBC</th><th>CNIB</th><th>Expiration</th><th>Jours</th><th>CSPS</th><th>District</th></tr></thead>
+          <tbody id="cnib-expires-tbody"><tr><td colspan="6" class="empty-state"><span class="ico">⏳</span></td></tr></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title" style="color:var(--amber)">⏰ Expiration dans moins de 3 mois</div>
+          <div class="panel-action" onclick="exporterCnib('proches')">↓ CSV</div> <div class="panel-action" onclick="exporterCnib('proches','pdf')" style="color:var(--red)">↓ PDF</div>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>ASBC</th><th>CNIB</th><th>Expiration</th><th>Jours restants</th><th>CSPS</th><th>District</th></tr></thead>
+          <tbody id="cnib-proches-tbody"><tr><td colspan="6" class="empty-state"><span class="ico">⏳</span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ VUE PAIEMENTS ══ -->
+    <div id="vue-paiements" style="display:none">
+
+      <!-- KPIs -->
+      <div class="pai-kpi-grid" id="pai-kpi">
+        <div class="pai-kpi" style="animation-delay:.00s"><div class="pai-kpi-label">Total paiements</div><div class="pai-kpi-val" style="color:var(--text)">—</div></div>
+        <div class="pai-kpi" style="animation-delay:.06s;"><div class="pai-kpi-label">Réussis</div><div class="pai-kpi-val" style="color:var(--green)">—</div></div>
+        <div class="pai-kpi" style="animation-delay:.12s"><div class="pai-kpi-label">Échecs</div><div class="pai-kpi-val" style="color:var(--red)">—</div></div>
+        <div class="pai-kpi" style="animation-delay:.18s"><div class="pai-kpi-label">Remboursés</div><div class="pai-kpi-val" style="color:var(--amber)">—</div></div>
+        <div class="pai-kpi" style="animation-delay:.24s"><div class="pai-kpi-label">Montant total</div><div class="pai-kpi-val" style="color:var(--blue)">—</div></div>
+      </div>
+
+      <!-- Filtres -->
+      <div class="filter-bar" style="gap:12px;flex-wrap:wrap">
+        <!-- Statut -->
+        <div>
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Statut</div>
+          <div style="display:flex;gap:6px" id="pai-statut-btns">
+            <button class="btn-secondary btn-sm pai-statut-btn active" data-val="" onclick="setPaiStatut(this)">Tous</button>
+            <button class="btn-secondary btn-sm pai-statut-btn" data-val="reussi"    onclick="setPaiStatut(this)" style="--hc:var(--green)">✓ Réussi</button>
+            <button class="btn-secondary btn-sm pai-statut-btn" data-val="echec"     onclick="setPaiStatut(this)" style="--hc:var(--red)">✗ Échec</button>
+            <button class="btn-secondary btn-sm pai-statut-btn" data-val="rembourse" onclick="setPaiStatut(this)" style="--hc:var(--amber)">↩ Remboursé</button>
+          </div>
+        </div>
+        <!-- Période -->
+        <div>
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Période</div>
+          <div id="pai-periode-multi"></div>
+        </div>
+        <!-- Région -->
+        <div id="pai-geo-wrap" style="display:flex;align-items:flex-end;gap:8px"></div>
+        <!-- Actions export -->
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:flex-end">
+          <button class="btn-secondary btn-sm" onclick="exporterPaiements()">↓ CSV</button>
+          <button class="btn-secondary btn-sm" onclick="exporterPaiements('pdf')" style="color:var(--red)">↓ PDF</button>
+          <button class="btn-primary btn-sm" onclick="exporterPaiementsParRegion()">↓ CSV région</button>
+          <button class="btn-primary btn-sm" onclick="exporterPaiementsParRegion('pdf')" style="background:var(--red)">↓ PDF région</button>
+        </div>
+      </div>
+
+      <!-- Tableau détail -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Détail des paiements</div>
+          <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace" id="pai-count">—</div>
+        </div>
+        <table class="data-table">
+          <thead><tr>
+            <th>ASBC</th>
+            <th>Période</th>
+            <th>Montant</th>
+            <th>Statut</th>
+            <th>Formation sanitaire / Village</th>
+            <th>Téléphone OM</th>
+          </tr></thead>
+          <tbody id="pai-tbody"><tr><td colspan="6" class="empty-state"><span class="ico">⏳</span><p>Chargement…</p></td></tr></tbody>
+        </table>
+        <div class="pagination-wrap" id="pagination-paiements"></div>
+      </div>
+
+      <!-- Synthèse par région -->
+      <div class="panel" id="pai-region-panel" style="display:none;margin-top:14px">
+        <div class="panel-head">
+          <div class="panel-title">Synthèse par région</div>
+          <div class="panel-action" onclick="exporterPaiementsParRegion()">↓ Export CSV</div>
+        </div>
+        <table class="data-table">
+          <thead><tr>
+            <th>Formation sanitaire</th><th>Total</th><th>Réussis</th><th>Échecs</th><th>Remboursés</th><th>Montant (FCFA)</th><th>Taux réussite</th>
+          </tr></thead>
+          <tbody id="pai-region-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ VUE INACTIFS ══ -->
+    <div id="vue-inactifs" style="display:none">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">ASBC désactivés — Historique</div>
+          <div class="panel-action" onclick="exporterInactifs()">↓ CSV</div> <div class="panel-action" onclick="exporterInactifs('pdf')" style="color:var(--red)">↓ PDF</div>
+        </div>
+        <table class="data-table">
+          <thead><tr>
+            <th>ASBC</th><th>Localisation</th><th>Motif</th><th>Désactivé le</th><th>Par</th>
+          </tr></thead>
+          <tbody id="inactifs-tbody"><tr><td colspan="5" class="empty-state"><span class="ico">⏳</span><p>Chargement…</p></td></tr></tbody>
+        </table>
+        <div class="pagination-wrap" id="pagination-inactifs"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+let vueActive = 'accueil';
+let asbcPage = 1, inactifsPage = 1, paiPage = 1;
+let asbcGeoCtrl = null, paiGeoCtrl = null;
+let cnibData = null;
+let paiStatutActif = '';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await PGA_LAYOUT.init('rapports', 'Rapports & Exports');
+  if (!user) return;
+
+  // Multi-selects période (fonctionnalité, paiements, filtre ASBC fonctionnel)
+  const moisItems = [];
+  const today = new Date();
+  for (let i = 0; i < 12; i++) {
+    let year = today.getFullYear();
+    let month = today.getMonth() - i;
+    while (month < 0) { month += 12; year--; }
+    const d = new Date(year, month, 1);
+    const val   = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+    moisItems.push({ id: val, nom: label });
+  }
+  window.fonctPeriodeMs = PGA_UI.multiSelect(document.getElementById('fonct-periode-multi'), { placeholder: 'Sélectionner les mois' });
+  window.fonctPeriodeMs.setItems(moisItems);
+  window.paiPeriodeMs = PGA_UI.multiSelect(document.getElementById('pai-periode-multi'), { placeholder: 'Sélectionner les mois' });
+  window.paiPeriodeMs.setItems(moisItems);
+  window.asbcFpMs = PGA_UI.multiSelect(document.getElementById('asbc-filtre-periode-multi'), { placeholder: 'Sélectionner les mois' });
+  window.asbcFpMs.setItems(moisItems);
+  const moisCourantDefault = moisItems[0]?.id || '';
+
+  // Vérifier si URL contient une vue
+  const params = new URLSearchParams(location.search);
+  const vueParam = params.get('vue');
+  if (vueParam) {
+    const tab = document.querySelector(`[data-vue="${vueParam}"]`);
+    if (tab) changerVue(tab);
+  }
+
+  // Pré-charger compteur CNIB pour la carte d'accueil
+  chargerCnibPreview();
+});
+
+// ── NAVIGATION VUES ───────────────────────────────────────────────────────────
+function changerVue(el) {
+  document.querySelectorAll('.tab[data-vue]').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const nouvelle = el.dataset.vue;
+
+  document.querySelectorAll('[id^="vue-"]').forEach(v => v.style.display = 'none');
+  document.getElementById(`vue-${nouvelle}`).style.display = 'block';
+  vueActive = nouvelle;
+
+  if (nouvelle === 'asbc')        initVueAsbc();
+  if (nouvelle === 'fonctionnalite') chargerFonctionnalite();
+  if (nouvelle === 'cnib')        chargerCnib();
+  if (nouvelle === 'inactifs')    chargerInactifs();
+  if (nouvelle === 'paiements')   initVuePaiements();
+}
+
+// ── VUE ASBC ──────────────────────────────────────────────────────────────────
+async function initVueAsbc() {
+  if (asbcGeoCtrl) return;
+  asbcGeoCtrl = await PGA_UI.initFiltresGeoMulti(document.getElementById('asbc-geo-mini'), {
+    niveaux: ['region', 'district', 'formation'],
+    onChange: () => { asbcPage = 1; chargerListeAsbc(); }
+  });
+  chargerListeAsbc();
+}
+
+function onFiltreAsbcChange() {
+  const statut = document.getElementById('asbc-filtre-statut').value;
+  const periodeWrap = document.getElementById('asbc-filtre-periode-wrap');
+  periodeWrap.style.display = statut === 'fonctionnel' ? '' : 'none';
+  asbcPage = 1;
+  chargerListeAsbc();
+}
+
+async function chargerListeAsbc() {
+  const statut = document.getElementById('asbc-filtre-statut').value;
+  const isFonct = statut === 'fonctionnel';
+  const params = { statut, page: asbcPage, par_page: 30, ...(asbcGeoCtrl?.getValues() || {}) };
+  if (isFonct) {
+    const fp = window.asbcFpMs?.getValues() || [];
+    if (fp.length > 1) params['periodes[]'] = fp;
+    else if (fp.length === 1) params.periode = fp[0];
+    else params.periode = moisCourantDefault;
+  }
+
+  // Adapter les colonnes du tableau selon le filtre
+  const thead = document.getElementById('asbc-list-thead');
+  const cols  = isFonct ? 8 : 7;
+  thead.innerHTML = `<tr>
+    <th>Code</th><th>Nom complet</th><th>Localisation</th><th>CNIB</th><th>Téléphone</th><th>Distance</th><th>Recrutement</th>
+    ${isFonct ? '<th>Validation</th>' : ''}
+  </tr>`;
+
+  const tbody = document.getElementById('asbc-list-tbody');
+  tbody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center;padding:16px">${PGA_UI.spinnerHtml(18)}</td></tr>`;
+  try {
+    const res = await PGA_API.rapports.listeAsbc(params);
+    const data = res.data || [];
+    if (!data.length) {
+      const msg = isFonct
+        ? `Aucun ASBC fonctionnel pour la période <strong>${params.periode || 'sélectionnée'}</strong>.<br><small style="color:var(--text3)">Vérifiez que des statuts ont été saisis et validés pour ce mois.</small>`
+        : 'Aucun ASBC trouvé.';
+      tbody.innerHTML = `<tr><td colspan="${cols}" class="empty-state"><span class="ico">👤</span><p>${msg}</p></td></tr>`;
+      document.getElementById('pagination-asbc').innerHTML = '';
+      return;
+    }
+
+    const validationLabel = {
+      brouillon:    '<span style="font-size:11px;color:var(--text3)">Brouillon</span>',
+      valide_rps:   '<span style="font-size:11px;color:var(--blue);font-weight:600">Validé RPS</span>',
+      lu_directeur: '<span style="font-size:11px;color:var(--green);font-weight:600">Lu Directeur</span>',
+      verrouille:   '<span style="font-size:11px;color:var(--amber);font-weight:600">Verrouillé</span>',
+    };
+
+    tbody.innerHTML = data.map(a => `
+      <tr onclick="window.location.href='asbc-detail.html?id=${a.code_asbc}'">
+        <td class="cell-mono" style="font-size:11px">${a.code_asbc}</td>
+        <td><div class="cell-name">${a.nom} ${a.prenom}</div><div class="cell-sub">${a.sexe} · ${a.age} ans</div></td>
+        <td><div style="font-size:12px">${a.village || '—'}</div><div class="cell-sub">${a.csps || '—'} · ${a.district || '—'}</div></td>
+        <td>
+          <div class="cell-mono" style="font-size:11px">${a.cnib_numero || '—'}</div>
+          <div style="margin-top:3px">${PGA_UI.fmt.cnibBadge(a.cnib_statut)}</div>
+        </td>
+        <td class="cell-mono">${a.telephone || '—'}</td>
+        <td>${PGA_UI.fmt.statutBadge(a.profil_distance === 'plus_5km' ? 'non_fonctionnel' : 'actif').replace('Non fonct.','≥ 5km').replace('Actif','< 5km')}</td>
+        <td class="cell-mono" style="font-size:11px">${a.date_recrutement || '—'}</td>
+        ${isFonct ? `<td>${validationLabel[a.statut_validation] || '<span style="font-size:11px;color:var(--text3)">—</span>'}</td>` : ''}
+      </tr>
+    `).join('');
+
+    PGA_UI.renderPagination(
+      document.getElementById('pagination-asbc'),
+      { current_page: asbcPage, last_page: Math.ceil((res.total || data.length) / 30), from: (asbcPage-1)*30+1, to: Math.min(asbcPage*30, res.total || data.length), total: res.total || data.length },
+      (p) => { asbcPage = p; chargerListeAsbc(); }
+    );
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+}
+
+// ── VUE FONCTIONNALITÉ ────────────────────────────────────────────────────────
+async function chargerFonctionnalite() {
+  const fp = window.fonctPeriodeMs?.getValues() || [];
+  const periode = fp[0] || moisCourantDefault;
+  const container = document.getElementById('fonct-content');
+  container.innerHTML = `<div style="text-align:center;padding:30px">${PGA_UI.spinnerHtml(24)}</div>`;
+  try {
+    const periodeParams = fp.length > 1 ? { 'periodes[]': fp } : { periode };
+    const t = await PGA_API.statuts.taux(periode);
+    const tb = await PGA_API.rapports.tableauBord(periodeParams);
+    container.innerHTML = `
+      <div class="grid-4" style="margin-bottom:16px">
+        ${[
+          { label:'Total ASBC',     val: PGA_UI.fmt.nb(t.total_asbc),            color:'#E8EDF5' },
+          { label:'Fonctionnalité', val: PGA_UI.fmt.pct(t.taux_fonctionnalite),  color:'#2ECC7A' },
+          { label:'Promptitude',    val: PGA_UI.fmt.pct(t.taux_promptitude),     color:'#5B9CF6' },
+          { label:'Saisie',         val: PGA_UI.fmt.pct(t.taux_saisie),          color: t.taux_saisie >= 80 ? '#2ECC7A' : '#F0A030' },
+        ].map((c,i) => `
+          <div class="panel" style="padding:16px;animation:rise .3s ease ${i*.08}s both">
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${c.label}</div>
+            <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:${c.color};letter-spacing:-.04em">${c.val}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Fonctionnalité par région — ${PGA_UI.fmt.periode(periode)}</div></div>
+        <table class="data-table">
+          <thead><tr><th>Région</th><th>ASBC</th><th>Fonctionnels</th><th>Taux</th><th>Progression</th></tr></thead>
+          <tbody>
+            ${(tb.par_region || []).filter(Boolean).sort((a,b) => b.taux_fonctionnalite - a.taux_fonctionnalite).map(r => {
+              const taux = r.taux_fonctionnalite || 0;
+              const col  = taux >= 80 ? '#2ECC7A' : taux >= 60 ? '#F0A030' : '#E8524A';
+              return `<tr>
+                <td style="font-weight:600;color:var(--text)">${r.region}</td>
+                <td class="cell-mono">${PGA_UI.fmt.nb(r.total_asbc)}</td>
+                <td class="cell-mono" style="color:${col}">${PGA_UI.fmt.nb(Math.round(r.total_asbc * taux / 100))}</td>
+                <td><span style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;color:${col}">${taux.toFixed(1)}%</span></td>
+                <td style="width:180px">
+                  <div style="height:5px;background:var(--bg4);border-radius:3px;overflow:hidden">
+                    <div style="width:${taux}%;height:100%;background:${col};border-radius:3px;transition:width 1s ease"></div>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) { container.innerHTML = `<div class="empty-state"><span class="ico">⚠️</span><p>${PGA_UI.escapeHtml(err.message)}</p></div>`; }
+}
+
+// ── VUE CNIB ──────────────────────────────────────────────────────────────────
+async function chargerCnibPreview() {
+  try {
+    const data = await PGA_API.rapports.cnib();
+    const total = (data.total_expires || 0) + (data.total_proches || 0);
+    document.getElementById('badge-cnib').textContent = `${total} alertes`;
+    cnibData = data;
+  } catch {}
+}
+
+async function chargerCnib() {
+  if (cnibData) { renderCnibData(cnibData); return; }
+  try {
+    cnibData = await PGA_API.rapports.cnib();
+    renderCnibData(cnibData);
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+}
+
+function renderCnibData(data) {
+  // Résumé
+  document.getElementById('cnib-summary').innerHTML = `
+    <div class="panel" style="padding:16px">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">CNIB expirés</div>
+      <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--red);letter-spacing:-.04em">${data.total_expires || 0}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">Action immédiate requise</div>
+    </div>
+    <div class="panel" style="padding:16px">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Expiration &lt; 3 mois</div>
+      <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--amber);letter-spacing:-.04em">${data.total_proches || 0}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">À anticiper</div>
+    </div>
+  `;
+
+  // Table expirés
+  const renderRow = (a, type) => `
+    <tr class="${type === 'expire' ? 'cnib-urgent' : 'cnib-proche'}">
+      <td><div class="cell-name">${a.nom_complet}</div><div class="cell-sub">${a.code_asbc}</div></td>
+      <td class="cell-mono" style="font-size:11px">${a.cnib_numero}</td>
+      <td class="cell-mono" style="font-size:11px;color:${type === 'expire' ? 'var(--red)' : 'var(--amber)'}">${a.expiration}</td>
+      <td><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:${type === 'expire' ? 'var(--red)' : 'var(--amber)'}">${a.jours}j</span></td>
+      <td style="font-size:12px">${a.csps || '—'}</td>
+      <td style="font-size:12px">${a.district || '—'}</td>
+    </tr>
+  `;
+
+  const tbExpires = document.getElementById('cnib-expires-tbody');
+  tbExpires.innerHTML = (data.expires || []).length
+    ? data.expires.map(a => renderRow(a, 'expire')).join('')
+    : `<tr><td colspan="6" class="empty-state"><span class="ico">✅</span><p>Aucun CNIB expiré.</p></td></tr>`;
+
+  const tbProches = document.getElementById('cnib-proches-tbody');
+  tbProches.innerHTML = (data.expiration_proche || []).length
+    ? data.expiration_proche.map(a => renderRow(a, 'proche')).join('')
+    : `<tr><td colspan="6" class="empty-state"><span class="ico">✅</span><p>Aucun CNIB en voie d'expiration.</p></td></tr>`;
+}
+
+// ── VUE INACTIFS ──────────────────────────────────────────────────────────────
+async function chargerInactifs() {
+  const tbody = document.getElementById('inactifs-tbody');
+  tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:16px">${PGA_UI.spinnerHtml(18)}</td></tr>`;
+  try {
+    // /api/rapports/asbc-inactifs → paginated, retourne les champs de formatAsbcInactif()
+    const res = await PGA_API.rapports.listeAsbcInactifs({ page: inactifsPage });
+    const data = res.data || [];
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state"><span class="ico">📋</span><p>Aucun ASBC désactivé trouvé.</p></td></tr>`;
+      return;
+    }
+    const motifLabels = { abandon_poste: 'Abandon de poste', deces: 'Décès', demenagement: 'Déménagement', non_fonctionnalite_prolongee: 'Non-fonctionnalité', retraite: 'Fin d\'activité', autre: 'Autre' };
+    tbody.innerHTML = data.map(a => `
+      <tr>
+        <td><div class="cell-name">${a.nom_complet}</div><div class="cell-sub">${a.code_asbc}</div></td>
+        <td><div style="font-size:12px">${a.village || '—'}</div><div class="cell-sub">${a.district || '—'}</div></td>
+        <td>
+          <span class="badge badge-red">${motifLabels[a.motif_desactivation] || a.motif_desactivation || '—'}</span>
+          ${a.motif_detail ? `<div class="cell-sub" style="margin-top:3px">${a.motif_detail}</div>` : ''}
+        </td>
+        <td class="cell-mono" style="font-size:11px">${a.date_desactivation || '—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${a.desactive_par || '—'}</td>
+      </tr>
+    `).join('');
+
+    // Pagination serveur (50 par page)
+    PGA_UI.renderPagination(
+      document.getElementById('pagination-inactifs'),
+      { current_page: res.current_page, last_page: res.last_page, from: res.from, to: res.to, total: res.total },
+      (p) => { inactifsPage = p; chargerInactifs(); }
+    );
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+}
+
+// ── VUE RAPPORT PAIEMENTS ─────────────────────────────────────────────────────
+// Sources de données :
+//   KPIs    ← GET /paiements/imports  (totaux agrégés par import : nb_reussis, nb_echecs, nb_rembourses, montant_total)
+//   Tableau ← GET /paiements          (lignes individuelles avec statut, ASBC, région, montant)
+//   Région  ← agrégation côté client depuis les lignes (ou par_region si le backend la renvoie)
+
+async function initVuePaiements() {
+  if (!paiGeoCtrl) {
+    paiGeoCtrl = await PGA_UI.initFiltresGeoMulti(document.getElementById('pai-geo-wrap'), {
+      niveaux: ['region', 'district'],
+      onChange: () => { paiPage = 1; chargerRapportPaiements(); }
+    });
+  }
+  chargerRapportPaiements();
+}
+
+function setPaiStatut(btn) {
+  document.querySelectorAll('.pai-statut-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  paiStatutActif = btn.dataset.val;
+  paiPage = 1;
+  chargerRapportPaiements();
+}
+
+async function chargerRapportPaiements() {
+  const fp = window.paiPeriodeMs?.getValues() || [];
+  const periode = fp[0] || moisCourantDefault;
+  const tbody   = document.getElementById('pai-tbody');
+
+  // ── periode_mois obligatoire côté backend ───────────────────────────────
+  if (!periode) {
+    document.getElementById('pai-kpi').querySelectorAll('.pai-kpi-val').forEach(v => v.textContent = '—');
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><span class="ico">📅</span><p>Sélectionnez une période pour afficher les paiements.</p></td></tr>`;
+    document.getElementById('pai-region-panel').style.display = 'none';
+    document.getElementById('pagination-paiements').innerHTML = '';
+    return;
+  }
+
+  // Skeleton
+  document.getElementById('pai-kpi').querySelectorAll('.pai-kpi-val').forEach(v => v.textContent = '…');
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px">${PGA_UI.spinnerHtml(20)}</td></tr>`;
+
+  const geoParams = paiGeoCtrl?.getValues() || {};
+
+  const paramsLignes = {
+    page: paiPage, periode_mois: periode,
+    ...(paiStatutActif ? { statut: paiStatutActif } : {}),
+    ...geoParams,
+  };
+
+  try {
+    // Requêtes parallèles :
+    //   - /rapports/paiements?periode=  → KPIs agrégés du bon import
+    //   - /paiements?periode_mois=      → lignes individuelles pour le tableau
+    const [rapportRes, lignesRes] = await Promise.all([
+      PGA_API.rapports.paiements({ periode }),
+      PGA_API.paiements.statuts(paramsLignes),
+    ]);
+
+    // ── KPIs depuis l'import de la période ──────────────────────────────────
+    const imp = rapportRes.import;
+    const kpi = imp ? {
+      total:           imp.nb_lignes_total || 0,
+      total_reussi:    imp.nb_reussis      || 0,
+      total_echec:     imp.nb_echecs       || 0,
+      total_rembourse: imp.nb_rembourses   || 0,
+      montant_total:   imp.montant_total   || 0,
+    } : {
+      total: 0, total_reussi: 0, total_echec: 0, total_rembourse: 0, montant_total: 0
+    };
+    renderPaiKpis(kpi, paiStatutActif);
+
+    // ── Tableau + région ─────────────────────────────────────────────────────
+    renderPaiTable(lignesRes);
+    renderPaiRegions(lignesRes);
+
+    const total = lignesRes.total ?? (lignesRes.data||[]).length;
+    document.getElementById('pai-count').textContent =
+      `${PGA_UI.fmt.nb(total)} résultat${total !== 1 ? 's' : ''}`;
+
+    // Afficher le statut de clôture de l'import
+    if (imp) {
+      const cloture = imp.cloture
+        ? `<span style="color:var(--green);font-size:11px">✓ Clôturé le ${imp.cloture_le || ''}</span>`
+        : `<span style="color:var(--amber);font-size:11px">⚠ Non clôturé — importé le ${imp.importe_le || ''}</span>`;
+      document.getElementById('pai-count').innerHTML += ` &nbsp;·&nbsp; ${cloture}`;
+    }
+
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><span class="ico">⚠️</span><p>${PGA_UI.escapeHtml(err.message || 'Erreur de chargement')}</p></td></tr>`;
+    document.getElementById('pai-kpi').querySelectorAll('.pai-kpi-val').forEach(v => v.textContent = '—');
+    PGA_UI.toast(err.message || 'Erreur', 'error');
+  }
+}
+
+function renderPaiKpis(kpi, statutActif) {
+  const fmt = PGA_UI.fmt;
+
+  // Concordance : quand un filtre statut est actif, le "Total" reflète uniquement ce statut
+  const affiche = { ...kpi };
+  if (statutActif === 'reussi') {
+    affiche.total = kpi.total_reussi;
+    affiche.total_echec = 0; affiche.total_rembourse = 0;
+  } else if (statutActif === 'echec') {
+    affiche.total = kpi.total_echec;
+    affiche.total_reussi = 0; affiche.total_rembourse = 0; affiche.montant_total = 0;
+  } else if (statutActif === 'rembourse') {
+    affiche.total = kpi.total_rembourse;
+    affiche.total_reussi = 0; affiche.total_echec = 0; affiche.montant_total = 0;
+  }
+
+  const defs = [
+    { val: fmt.nb(affiche.total),           color: 'var(--text)',  bar: 'var(--border2)' },
+    { val: fmt.nb(affiche.total_reussi),    color: 'var(--green)', bar: 'var(--green)'   },
+    { val: fmt.nb(affiche.total_echec),     color: 'var(--red)',   bar: 'var(--red)'     },
+    { val: fmt.nb(affiche.total_rembourse), color: 'var(--amber)', bar: 'var(--amber)'   },
+    { val: fmt.montant(affiche.montant_total), color: 'var(--blue)', bar: 'var(--blue)'  },
+  ];
+  document.querySelectorAll('#pai-kpi .pai-kpi').forEach((el, i) => {
+    const v = el.querySelector('.pai-kpi-val');
+    v.textContent = defs[i].val;
+    v.style.color = defs[i].color;
+    let bar = el.querySelector('.kpi-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'kpi-bar';
+      bar.style.cssText = 'position:absolute;top:0;left:0;right:0;height:3px;border-radius:0';
+      el.prepend(bar);
+    }
+    bar.style.background = defs[i].bar;
+  });
+}
+
+function renderPaiTable(res) {
+  const tbody = document.getElementById('pai-tbody');
+  const data  = res.data || (Array.isArray(res) ? res : []);
+
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><span class="ico">💳</span><p>Aucun paiement trouvé pour ces critères.</p></td></tr>`;
+    document.getElementById('pagination-paiements').innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = data.map(p => {
+    // Champs réels renvoyés par GET /paiements (StatutPaiement avec eager loading asbc.village.formationSanitaire)
+    const asbc  = p.asbc || {};
+    const nom   = asbc.nom   ? `${asbc.nom} ${asbc.prenom}` : '—';
+    const code  = asbc.code_asbc || p.telephone_orange || '—';
+    const csps  = asbc.village?.formationSanitaire?.nom  || '—';
+    const vill  = asbc.village?.nom || '';
+    const tel   = p.telephone_orange || '—';
+    return `<tr>
+      <td>
+        <div class="cell-name">${nom}</div>
+        <div class="cell-sub cell-mono" style="font-size:10px">${code}</div>
+      </td>
+      <td class="cell-mono" style="font-size:11px">${PGA_UI.fmt.periode(p.periode_mois) || p.periode_mois || '—'}</td>
+      <td style="font-weight:600;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px">${p.montant != null ? PGA_UI.fmt.montant(p.montant) : '—'}</td>
+      <td>${paiStatutBadge(p.statut)}</td>
+      <td>
+        <div style="font-size:12px">${csps}</div>
+        <div class="cell-sub">${vill}</div>
+      </td>
+      <td class="cell-mono" style="font-size:10px;color:var(--text3)">${tel}</td>
+    </tr>`;
+  }).join('');
+
+  PGA_UI.renderPagination(
+    document.getElementById('pagination-paiements'),
+    {
+      current_page: res.current_page ?? paiPage,
+      last_page:    res.last_page    ?? Math.ceil((res.total || data.length) / 50),
+      from:         res.from         ?? (paiPage - 1) * 50 + 1,
+      to:           res.to           ?? Math.min(paiPage * 50, res.total || data.length),
+      total:        res.total        ?? data.length
+    },
+    (p) => { paiPage = p; chargerRapportPaiements(); }
+  );
+}
+
+function renderPaiRegions(res) {
+  // Agrégation par formation sanitaire (CSPS) — meilleure donnée géo disponible dans la réponse
+  let regions   = res.par_region || [];
+  let partielle = false;
+
+  if (!regions.length) {
+    const lignes = res.data || (Array.isArray(res) ? res : []);
+    if (!lignes.length) { document.getElementById('pai-region-panel').style.display = 'none'; return; }
+    const map = {};
+    lignes.forEach(p => {
+      const csps = p.asbc?.village?.formationSanitaire?.nom || 'Non définie';
+      if (!map[csps]) map[csps] = { region: csps, total: 0, total_reussi: 0, total_echec: 0, total_rembourse: 0, montant_total: 0 };
+      map[csps].total++;
+      if      (p.statut === 'reussi')    map[csps].total_reussi++;
+      else if (p.statut === 'echec')     map[csps].total_echec++;
+      else if (p.statut === 'rembourse') map[csps].total_rembourse++;
+      map[csps].montant_total += (p.montant || 0);
+    });
+    regions   = Object.values(map);
+    partielle = true;
+  }
+
+  const panel = document.getElementById('pai-region-panel');
+  panel.style.display = 'block';
+  const tbody = document.getElementById('pai-region-tbody');
+
+  tbody.innerHTML = regions
+    .sort((a, b) => (b.total_reussi||0) - (a.total_reussi||0))
+    .map(r => {
+      const taux = r.total ? ((r.total_reussi||0) / r.total * 100) : 0;
+      const col  = taux >= 80 ? 'var(--green)' : taux >= 50 ? 'var(--amber)' : 'var(--red)';
+      return `<tr>
+        <td style="font-weight:600;color:var(--text)">${r.region}</td>
+        <td class="cell-mono">${PGA_UI.fmt.nb(r.total||0)}</td>
+        <td class="cell-mono" style="color:var(--green)">${PGA_UI.fmt.nb(r.total_reussi||0)}</td>
+        <td class="cell-mono" style="color:var(--red)">${PGA_UI.fmt.nb(r.total_echec||0)}</td>
+        <td class="cell-mono" style="color:var(--amber)">${PGA_UI.fmt.nb(r.total_rembourse||0)}</td>
+        <td class="cell-mono" style="font-size:11px">${PGA_UI.fmt.montant(r.montant_total||0)}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:${col}">${taux.toFixed(1)}%</span>
+            <div style="flex:1;height:4px;background:var(--bg4);border-radius:3px;overflow:hidden;min-width:60px">
+              <div style="width:${taux}%;height:100%;background:${col};border-radius:3px;transition:width .8s ease"></div>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+  // Note si synthèse partielle (page courante seulement)
+  let note = panel.querySelector('.pai-region-note');
+  if (partielle) {
+    if (!note) {
+      note = document.createElement('div');
+      note.className = 'pai-region-note';
+      note.style.cssText = 'font-size:10px;color:var(--text3);padding:8px 18px;border-top:1px solid var(--border);font-style:italic';
+      panel.appendChild(note);
+    }
+    note.textContent = '⚠ Synthèse calculée sur la page courante. Cliquez « ↓ CSV par région » pour le rapport complet tous paiements.';
+  } else if (note) {
+    note.remove();
+  }
+}
+
+function paiStatutBadge(statut) {
+  const cfg = {
+    reussi:      { label: 'Réussi',      color: 'var(--green)', bg: 'rgba(46,204,122,.12)' },
+    echec:       { label: 'Échec',       color: 'var(--red)',   bg: 'rgba(232,82,74,.12)'  },
+    rembourse:   { label: 'Remboursé',   color: 'var(--amber)', bg: 'rgba(240,160,48,.12)' },
+    introuvable: { label: 'Introuvable', color: 'var(--text3)', bg: 'rgba(138,151,172,.12)'},
+    en_cours:    { label: 'En cours',    color: 'var(--blue)',  bg: 'rgba(91,156,246,.12)' },
+  }[statut] || { label: statut || '—', color: 'var(--text3)', bg: 'var(--bg3)' };
+  return `<span style="display:inline-block;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;background:${cfg.bg};color:${cfg.color}">${cfg.label}</span>`;
+}
+
+async function exporterPaiements(format) {
+  const periode = (window.paiPeriodeMs?.getValues()?.[0] || moisCourantDefault);
+  if (!periode) { PGA_UI.toast('Sélectionnez une période avant d\'exporter', 'warning'); return; }
+  PGA_UI.showLoader('Préparation de l\'export…');
+  try {
+    const geoParams = paiGeoCtrl?.getValues() || {};
+    const params = {
+      periode_mois: periode,
+      ...(paiStatutActif ? { statut: paiStatutActif } : {}),
+      ...geoParams,
+    };
+    let allData = [], page = 1, lastPage = 1;
+    do {
+      const res = await PGA_API.paiements.statuts({ ...params, page });
+      allData.push(...(res.data || []));
+      lastPage = res.last_page ?? 1;
+      page++;
+    } while (page <= lastPage && page <= 20);
+
+    if (!allData.length) { PGA_UI.toast('Aucune donnée à exporter', 'warning'); return; }
+
+    const csvData = allData.map(p => ({
+      code_asbc:          p.asbc?.code_asbc || '',
+      nom:                p.asbc?.nom || '',
+      prenom:             p.asbc?.prenom || '',
+      telephone_orange:   p.telephone_orange || '',
+      periode_mois:       p.periode_mois || '',
+      montant:            p.montant ?? '',
+      statut:             p.statut || '',
+      formation_sanitaire: p.asbc?.village?.formationSanitaire?.nom || '',
+      village:            p.asbc?.village?.nom || '',
+    }));
+    const suffix = `${paiStatutActif ? '_'+paiStatutActif : ''}_${periode}`;
+    if (format === 'pdf') {
+      PGA_UI.downloadPdf(csvData, colsPaiements, `Paiements Orange Money — ${PGA_UI.fmt.periode(periode)}`, `paiements${suffix}_${today()}.pdf`, { subtitle: paiStatutActif ? `Filtre : ${paiStatutActif}` : '' });
+    } else {
+      downloadCsv(jsonToCsv(csvData), `paiements${suffix}_${today()}.csv`);
+    }
+    PGA_UI.toast(`Export ${format === 'pdf' ? 'PDF' : 'CSV'} réussi — ${csvData.length} paiements`, 'success');
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+  finally { PGA_UI.hideLoader(); }
+}
+
+async function exporterPaiementsParRegion(format) {
+  const periode = (window.paiPeriodeMs?.getValues()?.[0] || moisCourantDefault);
+  if (!periode) { PGA_UI.toast('Sélectionnez une période avant d\'exporter', 'warning'); return; }
+  PGA_UI.showLoader('Génération du rapport par formation sanitaire…');
+  try {
+    const geoParams = paiGeoCtrl?.getValues() || {};
+    let allData = [], page = 1, lastPage = 1;
+    do {
+      const res = await PGA_API.paiements.statuts({ periode_mois: periode, ...geoParams, page });
+      allData.push(...(res.data || []));
+      lastPage = res.last_page ?? 1;
+      page++;
+    } while (page <= lastPage && page <= 20);
+
+    if (!allData.length) { PGA_UI.toast('Aucune donnée à exporter', 'warning'); return; }
+
+    const map = {};
+    allData.forEach(p => {
+      const csps = p.asbc?.village?.formationSanitaire?.nom || 'Non définie';
+      if (!map[csps]) map[csps] = { formation_sanitaire: csps, total: 0, reussis: 0, echecs: 0, rembourses: 0, montant_total: 0 };
+      map[csps].total++;
+      if      (p.statut === 'reussi')    map[csps].reussis++;
+      else if (p.statut === 'echec')     map[csps].echecs++;
+      else if (p.statut === 'rembourse') map[csps].rembourses++;
+      map[csps].montant_total += (p.montant || 0);
+    });
+    const synthese = Object.values(map).sort((a,b) => b.reussis - a.reussis);
+    synthese.forEach(r => {
+      r.taux_reussite = r.total ? ((r.reussis / r.total) * 100).toFixed(1) + '%' : '0.0%';
+    });
+
+    if (format === 'pdf') {
+      const colsSynthese = [
+        {header:'Formation sanitaire',dataKey:'formation_sanitaire'},{header:'Total',dataKey:'total'},
+        {header:'Réussis',dataKey:'reussis'},{header:'Échecs',dataKey:'echecs'},
+        {header:'Remboursés',dataKey:'rembourses'},{header:'Montant (FCFA)',dataKey:'montant_total'},
+        {header:'Taux réussite',dataKey:'taux_reussite'},
+      ];
+      PGA_UI.downloadPdf(synthese, colsSynthese, `Paiements par formation sanitaire — ${PGA_UI.fmt.periode(periode)}`, `paiements_par_csps_${periode}_${today()}.pdf`, { subtitle: `${synthese.length} formations, ${allData.length} paiements` });
+    } else {
+      const detailCols = ['code_asbc','nom','prenom','telephone_orange','periode_mois','montant','statut','formation_sanitaire','village'];
+      const csvLines = [
+        `=== RAPPORT PAIEMENTS PAR FORMATION SANITAIRE — ${PGA_UI.fmt.periode(periode)} ===`,
+        '"Formation sanitaire","Total","Réussis","Échecs","Remboursés","Montant total FCFA","Taux réussite"',
+        ...synthese.map(r =>
+          [r.formation_sanitaire, r.total, r.reussis, r.echecs, r.rembourses, r.montant_total, r.taux_reussite]
+            .map(v => `"${v}"`).join(',')
+        ),
+        '',
+        '=== DÉTAIL DES PAIEMENTS ===',
+        detailCols.join(','),
+        ...allData.map(p => detailCols.map(k => {
+          const vals = {
+            code_asbc: p.asbc?.code_asbc, nom: p.asbc?.nom, prenom: p.asbc?.prenom,
+            telephone_orange: p.telephone_orange, periode_mois: p.periode_mois,
+            montant: p.montant, statut: p.statut,
+            formation_sanitaire: p.asbc?.village?.formationSanitaire?.nom, village: p.asbc?.village?.nom
+          };
+          return `"${(vals[k]??'').toString().replace(/"/g,'""')}"`;
+        }).join(','))
+      ];
+      downloadCsv(csvLines.join('\n'), `paiements_par_csps_${periode}_${today()}.csv`);
+    }
+    PGA_UI.toast(`Export ${format === 'pdf' ? 'PDF' : 'CSV'} réussi — ${synthese.length} formations, ${allData.length} paiements`, 'success');
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+  finally { PGA_UI.hideLoader(); }
+}
+
+// ── COLONNES PDF ─────────────────────────────────────────────────────────────
+const colsAsbc = [
+  {header:'Code',dataKey:'code_asbc'},{header:'Nom',dataKey:'nom'},{header:'Prénom',dataKey:'prenom'},
+  {header:'Sexe',dataKey:'sexe'},{header:'Téléphone',dataKey:'telephone'},{header:'Village',dataKey:'village'},
+  {header:'CSPS',dataKey:'csps'},{header:'District',dataKey:'district'},{header:'Région',dataKey:'region'},
+  {header:'CNIB',dataKey:'cnib_numero'},{header:'Exp. CNIB',dataKey:'cnib_expiration'},{header:'Distance',dataKey:'profil_distance'},
+];
+const colsCnib = [
+  {header:'Code',dataKey:'code_asbc'},{header:'Nom complet',dataKey:'nom_complet'},{header:'Téléphone',dataKey:'telephone'},
+  {header:'N° CNIB',dataKey:'cnib_numero'},{header:'Expiration',dataKey:'expiration'},{header:'Jours',dataKey:'jours'},
+  {header:'CSPS',dataKey:'csps'},{header:'District',dataKey:'district'},
+];
+const colsPaiements = [
+  {header:'Code',dataKey:'code_asbc'},{header:'Nom',dataKey:'nom'},{header:'Prénom',dataKey:'prenom'},
+  {header:'Tél. Orange',dataKey:'telephone_orange'},{header:'Période',dataKey:'periode_mois'},
+  {header:'Montant',dataKey:'montant'},{header:'Statut',dataKey:'statut'},{header:'CSPS',dataKey:'formation_sanitaire'},
+];
+const colsInactifs = [
+  {header:'Code',dataKey:'code_asbc'},{header:'Nom complet',dataKey:'nom_complet'},{header:'Village',dataKey:'village'},
+  {header:'District',dataKey:'district'},{header:'Date désactivation',dataKey:'date_desactivation'},
+  {header:'Motif',dataKey:'motif_desactivation'},{header:'Détail',dataKey:'motif_detail'},
+];
+
+// ── EXPORTS ───────────────────────────────────────────────────────────────────
+async function exporterAsbc(format) {
+  PGA_UI.showLoader('Préparation de l\'export…');
+  try {
+    const statut = document.getElementById('asbc-filtre-statut')?.value || 'actif';
+    const params = { statut, ...(asbcGeoCtrl?.getValues() || {}) };
+    if (statut === 'fonctionnel') {
+      const fp = window.asbcFpMs?.getValues() || [];
+      if (fp.length > 1) params['periodes[]'] = fp;
+      else params.periode = fp[0] || moisCourantDefault;
+    }
+    const res = await PGA_API.rapports.listeAsbc(params);
+    const data = res.data || [];
+    const label = statut === 'fonctionnel' ? 'fonctionnels' : statut === 'inactif' ? 'inactifs' : 'actifs';
+    if (format === 'pdf') {
+      PGA_UI.downloadPdf(data, colsAsbc, `Liste des ASBC ${label}`, `asbc_${label}_${today()}.pdf`);
+    } else {
+      downloadCsv(jsonToCsv(data), `asbc_${label}_${today()}.csv`);
+    }
+    PGA_UI.toast(`Export ${format === 'pdf' ? 'PDF' : 'CSV'} réussi — ${res.total || data.length} ASBC`, 'success');
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+  finally { PGA_UI.hideLoader(); }
+}
+
+async function exporterAsbcFonctionnels() {
+  const fp = window.asbcFpMs?.getValues() || [];
+  const periode = fp[0] || moisCourantDefault;
+  PGA_UI.showLoader(`Préparation export ASBC fonctionnels — ${periode}…`);
+  try {
+    const res = await PGA_API.rapports.listeAsbc({ statut: 'fonctionnel', periode });
+    const data = res.data || [];
+    if (!data.length) {
+      PGA_UI.toast(`Aucun ASBC fonctionnel pour ${periode}`, 'warning');
+      return;
+    }
+    // CSV enrichi avec statut de validation
+    const csvData = data.map(a => ({
+      code_asbc:         a.code_asbc,
+      nom:               a.nom,
+      prenom:            a.prenom,
+      sexe:              a.sexe,
+      telephone:         a.telephone || '',
+      village:           a.village   || '',
+      csps:              a.csps      || '',
+      district:          a.district  || '',
+      province:          a.province  || '',
+      region:            a.region    || '',
+      cnib_numero:       a.cnib_numero    || '',
+      cnib_expiration:   a.cnib_expiration || '',
+      statut_global:     a.statut_global   || 'fonctionnel',
+      statut_validation: a.statut_validation || '',
+      periode_mois:      a.periode_mois || periode,
+      date_recrutement:  a.date_recrutement || '',
+    }));
+    downloadCsv(jsonToCsv(csvData), `asbc_fonctionnels_${periode}_${today()}.csv`);
+    PGA_UI.toast(`Export réussi — ${data.length} ASBC fonctionnels (${periode})`, 'success');
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+  finally { PGA_UI.hideLoader(); }
+}
+
+function exporterCnib(type, format) {
+  if (!cnibData) return;
+  const data = type === 'expires' ? cnibData.expires : cnibData.expiration_proche;
+  const label = type === 'expires' ? 'CNIB expirés' : 'CNIB en voie d\'expiration';
+  if (format === 'pdf') {
+    PGA_UI.downloadPdf(data, colsCnib, label, `cnib_${type}_${today()}.pdf`);
+    PGA_UI.toast(`Export PDF réussi — ${data.length} CNIB`, 'success');
+  } else {
+    downloadCsv(jsonToCsv(data), `cnib_${type}_${today()}.csv`);
+  }
+}
+
+async function exporterInactifs(format) {
+  PGA_UI.showLoader('Préparation de l\'export…');
+  try {
+    const res = await PGA_API.rapports.exporter('asbc-inactifs');
+    const data = res.data || [];
+    if (format === 'pdf') {
+      PGA_UI.downloadPdf(data, colsInactifs, 'ASBC inactifs / désactivés', `asbc_inactifs_${today()}.pdf`);
+    } else {
+      downloadCsv(jsonToCsv(data), `asbc_inactifs_${today()}.csv`);
+    }
+    PGA_UI.toast(`Export ${format === 'pdf' ? 'PDF' : 'CSV'} réussi — ${data.length} ASBC inactifs`, 'success');
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+  finally { PGA_UI.hideLoader(); }
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function jsonToCsv(data) {
+  if (!data?.length) return '';
+  const keys = Object.keys(data[0]);
+  return [keys.join(','), ...data.map(row => keys.map(k => `"${(row[k]??'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
+}
+function downloadCsv(csv, filename) {
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+}
+function today() { return new Date().toISOString().slice(0, 10); }
+</script>
+</body>
+</html>

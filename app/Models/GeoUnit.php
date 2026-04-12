@@ -49,6 +49,16 @@ class GeoUnit extends Model
         return $this->children()->where('status', 'active');
     }
 
+    public function agents(): HasMany
+    {
+        return $this->hasMany(Agent::class);
+    }
+
+    public function activeAgents(): HasMany
+    {
+        return $this->hasMany(Agent::class)->where('statut', 'actif');
+    }
+
     // ── Scopes ─────────────────────────────────────────────────────
 
     public function scopeActive($query)

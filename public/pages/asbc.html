@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Gestion ASBC</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<script src="../js/jspdf.min.js"></script>
+<script src="../js/jspdf-autotable.min.js"></script>
+<style>
+/* Réutiliser les variables du dashboard */
+:root{--bg:#0D1117;--bg2:#161B24;--bg3:#1E2530;--bg4:#252D3A;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--text:#E8EDF5;--text2:#8A97AC;--text3:#5A6578;--green:#2ECC7A;--amber:#F0A030;--red:#E8524A;--blue:#5B9CF6;--r:8px;--r-lg:12px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+.sidebar{width:220px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:50;}
+.logo-area{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.logo-mark{width:32px;height:32px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:#0D1117;}
+.logo-armoirie{width:34px;height:34px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));}
+.logo-badge{display:flex;align-items:center;gap:10px;}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--text);}
+.logo-sub{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+.nav-section{padding:14px 12px 8px;flex:1;overflow-y:auto;}
+.nav-group{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;padding:0 8px;margin:12px 0 5px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);cursor:pointer;transition:background .15s;margin-bottom:2px;color:var(--text2);text-decoration:none;}
+.nav-item:hover{background:var(--bg3);}
+.nav-item.active{background:rgba(46,204,122,.08);color:var(--green);}
+.nav-item svg{width:16px;height:16px;fill:currentColor;flex-shrink:0;opacity:.7;}
+.nav-item.active svg{opacity:1;}
+.nav-item span{font-size:13px;font-weight:500;}
+.sidebar-footer{padding:14px 12px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r);cursor:pointer;transition:background .15s;}
+.user-row:hover{background:var(--bg3);}
+.user-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#D4724A,#F0A030);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);}
+.user-role{font-size:10px;color:var(--text3);margin-top:1px;}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;}
+.topbar{height:56px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:40;}
+.page-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.02em;}
+.content{flex:1;padding:24px 28px;}
+.content::-webkit-scrollbar{width:5px;}
+.content::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px;}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.search-wrap{flex:1;min-width:200px;position:relative;}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;fill:var(--text3);}
+.search-input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px 9px 38px;font-size:13px;color:var(--text);font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;}
+.search-input:focus{border-color:rgba(46,204,122,.4);}
+.search-input::placeholder{color:var(--text3);}
+.btn-primary{padding:9px 18px;background:var(--green);border:none;border-radius:var(--r);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#0D1117;cursor:pointer;transition:opacity .15s;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+.btn-primary:hover{opacity:.9;}
+.btn-secondary{padding:9px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:background .15s;white-space:nowrap;}
+.btn-secondary:hover{background:var(--bg3);}
+.btn-danger{padding:9px 16px;background:rgba(232,82,74,.1);border:1px solid rgba(232,82,74,.25);border-radius:var(--r);font-size:13px;font-weight:600;color:var(--red);cursor:pointer;transition:background .15s;}
+.btn-danger:hover{background:rgba(232,82,74,.2);}
+
+/* Filtres géo */
+.geo-filters{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;margin-bottom:18px;}
+.geo-filters-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;}
+.geo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+
+/* Tab statuts */
+.tabs{display:flex;gap:4px;margin-bottom:16px;}
+.tab{padding:7px 16px;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid transparent;color:var(--text3);}
+.tab:hover{background:var(--bg3);color:var(--text2);}
+.tab.active{background:rgba(46,204,122,.1);border-color:rgba(46,204,122,.25);color:var(--green);}
+.tab .count{font-family:'IBM Plex Mono',monospace;font-size:10px;margin-left:6px;opacity:.7;}
+
+/* Table */
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);text-align:left;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+.data-table th:hover{color:var(--text2);}
+.data-table td{padding:12px 16px;font-size:13px;color:var(--text2);border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tbody tr{cursor:pointer;transition:background .1s;}
+.data-table tbody tr:hover td{background:rgba(255,255,255,.02);}
+.cell-name{font-weight:600;color:var(--text);margin-bottom:2px;}
+.cell-sub{font-size:11px;color:var(--text3);}
+.cell-mono{font-family:'IBM Plex Mono',monospace;font-size:12px;}
+.empty-state{padding:48px 20px;text-align:center;color:var(--text3);}
+.empty-state .ico{font-size:32px;margin-bottom:10px;opacity:.4;}
+.empty-state p{font-size:13px;line-height:1.6;}
+
+/* Drawer (formulaire ASBC) */
+.drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;}
+.drawer-overlay.open{display:block;}
+.drawer{position:fixed;top:0;right:-520px;width:520px;max-width:100%;height:100vh;
+  background:var(--bg2);border-left:1px solid var(--border);z-index:201;
+  display:flex;flex-direction:column;transition:right .25s cubic-bezier(.4,0,.2,1);
+  overflow-y:auto;}
+.drawer.open{right:0;}
+.drawer-head{padding:22px 24px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:10;}
+.drawer-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.02em;}
+.drawer-close{width:32px;height:32px;border-radius:var(--r);background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--text2);}
+.drawer-body{padding:24px;flex:1;}
+.drawer-footer{padding:18px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:var(--bg2);}
+
+/* Formulaire */
+.form-section{margin-bottom:22px;}
+.form-section-title{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.form-field label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+.form-field input,.form-field select,.form-field textarea{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;font-size:13px;color:var(--text);font-family:'Instrument Sans',sans-serif;outline:none;transition:border-color .15s;}
+.form-field input:focus,.form-field select:focus{border-color:rgba(46,204,122,.4);}
+.form-field textarea{resize:vertical;min-height:80px;}
+.form-field .hint{font-size:11px;color:var(--text3);}
+.required::after{content:' *';color:var(--red);}
+
+/* Pagination */
+.pagination-wrap{min-height:48px;}
+
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="page-title">Gestion des ASBC</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="btn-primary" onclick="ouvrirDrawer()">
+        <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:#0D1117"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Nouvel ASBC
+      </button>
+      <button class="btn-secondary" onclick="exporter()">↓ CSV</button>
+      <button class="btn-secondary" onclick="exporter('pdf')" style="color:#E8524A">↓ PDF</button>
+    </div>
+  </header>
+
+  <div class="content">
+    <!-- Filtres géo cascadants -->
+    <div class="geo-filters">
+      <div class="geo-filters-title">Filtrer par zone géographique</div>
+      <div class="geo-grid" id="geo-container"></div>
+    </div>
+
+    <!-- Tabs + Recherche -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+      <div class="tabs">
+        <div class="tab active" data-statut="actif" onclick="changerTab(this)">Actifs <span class="count" id="count-actif">—</span></div>
+        <div class="tab" data-statut="en_attente" onclick="changerTab(this)">En attente <span class="count" id="count-attente">—</span></div>
+        <div class="tab" data-statut="inactif" onclick="changerTab(this)">Inactifs</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select id="sel-tri" onchange="changerTri(this.value)" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 10px;font-size:12px;color:var(--text2);outline:none;cursor:pointer;font-family:inherit">
+          <option value="nom:asc">Nom A→Z</option>
+          <option value="nom:desc">Nom Z→A</option>
+          <option value="prenom:asc">Prénom A→Z</option>
+          <option value="prenom:desc">Prénom Z→A</option>
+          <option value="date_activation:desc">Activation récente</option>
+          <option value="date_activation:asc">Activation ancienne</option>
+          <option value="code_asbc:asc">Code ASBC</option>
+        </select>
+        <div class="search-wrap" style="max-width:280px">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input class="search-input" type="text" id="search-input" placeholder="Nom, CNIB, téléphone…" oninput="debouncedSearch()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="panel">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ASBC</th>
+            <th>Localisation</th>
+            <th>CNIB</th>
+            <th>Téléphone</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="asbc-tbody">
+          <tr><td colspan="6" class="empty-state"><div class="ico">⏳</div><p>Chargement…</p></td></tr>
+        </tbody>
+      </table>
+      <div class="pagination-wrap" id="pagination"></div>
+    </div>
+  </div>
+</main>
+
+<!-- Drawer création ASBC -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="fermerDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-title" id="drawer-title">Nouvel ASBC</div>
+    <div class="drawer-close" onclick="fermerDrawer()">×</div>
+  </div>
+  <form class="drawer-body" id="asbc-form" onsubmit="soumettreForm(event)">
+
+    <div class="form-section">
+      <div class="form-section-title">Identité</div>
+      <div class="form-grid-2">
+        <div class="form-field"><label class="required">Nom</label><input type="text" name="nom" placeholder="OUEDRAOGO" required></div>
+        <div class="form-field"><label class="required">Prénom</label><input type="text" name="prenom" placeholder="Aminata" required></div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-field"><label class="required">Date de naissance</label><input type="date" name="date_naissance" required></div>
+        <div class="form-field"><label class="required">Sexe</label>
+          <select name="sexe" required><option value="">— Sélectionner —</option><option value="F">Féminin</option><option value="M">Masculin</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">CNIB</div>
+      <div class="form-grid-2">
+        <div class="form-field"><label class="required">Numéro CNIB</label><input type="text" name="cnib_numero" placeholder="B123456789" required>
+          <span class="hint">9 à 11 caractères. Vérification de doublon automatique.</span>
+        </div>
+        <div class="form-field"><label>Date de délivrance</label><input type="date" name="cnib_date_delivrance"></div>
+      </div>
+      <div class="form-field"><label class="required">Date d'expiration CNIB</label><input type="date" name="cnib_date_expiration" required></div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Contact</div>
+      <div class="form-grid-2">
+        <div class="form-field"><label class="required">Téléphone (Orange Money)</label><input type="tel" name="telephone" placeholder="70123456" maxlength="8" required>
+          <span class="hint">8 chiffres. Vérification de doublon automatique.</span>
+        </div>
+        <div class="form-field"><label>Téléphone alternatif</label><input type="tel" name="telephone_alternatif" placeholder="65123456" maxlength="8">
+          <span class="hint">8 chiffres. Doublon vérifié également.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Localisation</div>
+      <div id="geo-form-container" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px"></div>
+      <div class="form-grid-2">
+        <div class="form-field"><label class="required">Distance FS — Village</label>
+          <select name="profil_distance" required>
+            <option value="">— Sélectionner —</option>
+            <option value="moins_5km">Moins de 5 km</option>
+            <option value="plus_5km">5 km et plus</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Distance exacte (km)</label><input type="number" name="distance_km" step="0.1" min="0" placeholder="3.5"></div>
+      </div>
+      <div class="form-field"><label class="required">Date de recrutement</label><input type="date" name="date_recrutement" required></div>
+    </div>
+
+  </form>
+  <div class="drawer-footer">
+    <button type="button" class="btn-secondary" onclick="fermerDrawer()">Annuler</button>
+    <button type="submit" form="asbc-form" class="btn-primary" id="btn-soumettre">Enregistrer</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let statut = 'actif', page = 1, recherche = '', geoValues = {};
+let tri = 'nom', ordre = 'asc';
+let filtresGeo = null, filtresGeoForm = null;
+let editingId = null;
+let searchTimeout;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const u = await PGA_LAYOUT.init('asbc', 'Gestion des ASBC');
+  if (!u) return;
+
+  // Filtres géo liste (multi-select régions + districts)
+  filtresGeo = await PGA_UI.initFiltresGeoMulti(
+    document.getElementById('geo-container'),
+    { niveaux: ['region', 'district', 'formation', 'village'],
+      onChange: () => { page = 1; charger(); } }
+  );
+
+  // Filtres géo formulaire (drawer — jusqu'au village)
+  filtresGeoForm = await PGA_UI.initFiltresGeo(
+    document.getElementById('geo-form-container'),
+    { niveaux: ['region', 'district', 'formation', 'village'] }
+  );
+
+  await charger();
+});
+
+// ── CHARGEMENT ────────────────────────────────────────────────────────────────
+async function charger() {
+  const params = { statut, page, par_page: 20, tri, ordre };
+  if (recherche) params.recherche = recherche;
+  Object.assign(params, filtresGeo?.getValues() || {});
+
+  try {
+    const res = await PGA_API.asbc.liste(params);
+
+    renderTable(res.data || res);
+
+    // Pagination
+    if (res.meta) {
+      PGA_UI.renderPagination(document.getElementById('pagination'), res.meta, (p) => { page = p; charger(); });
+    }
+
+    // Compteurs tabs
+    if (statut === 'actif') document.getElementById('count-actif').textContent = res.meta?.total || '';
+    if (statut === 'en_attente') document.getElementById('count-attente').textContent = res.meta?.total || '';
+
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur de chargement', 'error');
+  }
+}
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────────
+function renderTable(data) {
+  const tbody = document.getElementById('asbc-tbody');
+  if (!data?.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><div class="ico">👤</div><p>Aucun ASBC trouvé.</p></td></tr>`;
+    return;
+  }
+
+  const u = PGA_API.user.get();
+  const peutValider = ['admin_dsc', 'superviseur_dsc'].includes(u?.role);
+
+  tbody.innerHTML = data.map(a => `
+    <tr onclick="voirDetail('${a.id}')">
+      <td>
+        <div class="cell-name">${PGA_UI.escapeHtml(a.nom_complet)}</div>
+        <div class="cell-sub">${PGA_UI.escapeHtml(a.code_asbc)} · ${a.sexe === 'F' ? '♀' : '♂'} ${a.age} ans</div>
+      </td>
+      <td>
+        <div style="font-size:12px;color:var(--text)">${a.village || '—'}</div>
+        <div class="cell-sub">${a.formation_sanitaire || '—'} · ${a.district || '—'}</div>
+      </td>
+      <td>
+        <div class="cell-mono" style="font-size:11px">${a.cnib_numero}</div>
+        <div style="margin-top:4px">${PGA_UI.fmt.cnibBadge(a.cnib_statut)}</div>
+      </td>
+      <td class="cell-mono">${a.telephone}</td>
+      <td>${PGA_UI.fmt.statutBadge(a.statut)}</td>
+      <td onclick="event.stopPropagation()" style="display:flex;gap:6px;align-items:center;padding-top:8px;padding-bottom:8px">
+        <button class="btn-secondary" style="padding:5px 10px;font-size:11px" onclick="modifierAsbc('${a.id}')">Modifier</button>
+        ${a.statut === 'en_attente_validation' && peutValider
+          ? `<button class="btn-primary" style="padding:5px 10px;font-size:11px" onclick="validerAsbc('${a.id}', '${PGA_UI.escapeHtml(a.nom_complet).replace(/'/g, "\\'")}')">Valider</button>`
+          : ''}
+        ${a.statut === 'actif'
+          ? `<button class="btn-danger" style="padding:5px 10px;font-size:11px" onclick="desactiverAsbc('${a.id}', '${PGA_UI.escapeHtml(a.nom_complet).replace(/'/g, "\\'")}')">Désactiver</button>`
+          : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function changerTab(el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  statut = el.dataset.statut;
+  page   = 1;
+  charger();
+}
+
+function changerTri(val) {
+  const [t, o] = val.split(':');
+  tri = t; ordre = o;
+  page = 1;
+  charger();
+}
+
+const debouncedSearch = () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    recherche = document.getElementById('search-input').value;
+    page = 1;
+    charger();
+  }, 350);
+};
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+async function validerAsbc(id, nom) {
+  const ok = await PGA_UI.confirmer('Valider cet ASBC', `Confirmer la validation de <strong>${nom}</strong> ? Il sera activé immédiatement.`, { labelOk: 'Valider', danger: false });
+  if (!ok) return;
+  try {
+    await PGA_API.asbc.valider(id);
+    PGA_UI.toast(`${nom} validé et activé.`, 'success');
+    charger();
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur', 'error');
+  }
+}
+
+async function desactiverAsbc(id, nom) {
+  const ok = await PGA_UI.confirmer('Désactiver cet ASBC', `Désactiver <strong>${nom}</strong> ? Cette action nécessite un motif.`, { labelOk: 'Continuer', danger: true });
+  if (!ok) return;
+  const motif = prompt('Motif de désactivation :\n(abandon_poste / deces / demenagement / non_fonctionnalite_prolongee / retraite / autre)');
+  if (!motif) return;
+  try {
+    await PGA_API.asbc.desactiver(id, { motif_desactivation: motif });
+    PGA_UI.toast(`${nom} désactivé.`, 'success');
+    charger();
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur', 'error');
+  }
+}
+
+function voirDetail(id) {
+  window.location.href = `asbc-detail.html?id=${id}`;
+}
+
+const colsAsbcPdf = [
+  {header:'Code',dataKey:'code_asbc'},{header:'Nom',dataKey:'nom'},{header:'Prénom',dataKey:'prenom'},
+  {header:'Sexe',dataKey:'sexe'},{header:'Téléphone',dataKey:'telephone'},{header:'Village',dataKey:'village'},
+  {header:'CSPS',dataKey:'csps'},{header:'District',dataKey:'district'},{header:'Région',dataKey:'region'},
+  {header:'CNIB',dataKey:'cnib_numero'},{header:'Distance',dataKey:'profil_distance'},
+];
+
+async function exporter(format) {
+  PGA_UI.showLoader('Export en cours…');
+  try {
+    const params = { statut };
+    Object.assign(params, filtresGeo?.getValues() || {});
+    const res = await PGA_API.rapports.listeAsbc(params);
+    const data = res.data || [];
+    const label = statut === 'inactif' ? 'inactifs' : statut === 'en_attente' ? 'en_attente' : 'actifs';
+    if (format === 'pdf') {
+      PGA_UI.downloadPdf(data, colsAsbcPdf, `Liste des ASBC ${label}`, `asbc_${label}_${new Date().toISOString().slice(0,10)}.pdf`);
+    } else {
+      downloadCsv(jsonToCsv(data), `asbc_export_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+    PGA_UI.toast(`Export ${format === 'pdf' ? 'PDF' : 'CSV'} réussi — ${res.total || data.length} ASBC`, 'success');
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur export', 'error');
+  } finally {
+    PGA_UI.hideLoader();
+  }
+}
+
+// ── DRAWER ────────────────────────────────────────────────────────────────────
+function ouvrirDrawer(data = null) {
+  editingId = data?.id || null;
+  document.getElementById('drawer-title').textContent = editingId ? 'Modifier ASBC' : 'Nouvel ASBC';
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+
+  const form = document.getElementById('asbc-form');
+  PGA_UI.nettoyerErreursForm(form);
+
+  if (data) {
+    // Préremplir les champs
+    Object.entries(data).forEach(([key, val]) => {
+      const input = form.querySelector(`[name="${key}"]`);
+      if (input && val !== null && val !== undefined) input.value = val;
+    });
+  } else {
+    form.reset();
+    // Date de recrutement = aujourd'hui par défaut
+    const dateRec = form.querySelector('[name="date_recrutement"]');
+    if (dateRec) dateRec.value = new Date().toISOString().slice(0,10);
+  }
+}
+
+function fermerDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+  editingId = null;
+}
+
+async function soumettreForm(e) {
+  e.preventDefault();
+  const form = document.getElementById('asbc-form');
+  const btn  = document.getElementById('btn-soumettre');
+  PGA_UI.nettoyerErreursForm(form);
+
+  const data = Object.fromEntries(new FormData(form));
+
+  // Ajouter le village_id depuis les filtres géo du formulaire
+  const geoVals = filtresGeoForm?.getValues() || {};
+  if (geoVals.village_id) data.village_id = geoVals.village_id;
+
+  btn.disabled = true;
+  btn.textContent = 'Enregistrement…';
+
+  try {
+    if (editingId) {
+      await PGA_API.asbc.modifier(editingId, data);
+      PGA_UI.toast('ASBC mis à jour.', 'success');
+    } else {
+      await PGA_API.asbc.creer(data);
+      PGA_UI.toast('ASBC enregistré — en attente de validation DSC.', 'success');
+    }
+    fermerDrawer();
+    charger();
+  } catch (err) {
+    if (err.type === 'validation') {
+      PGA_UI.afficherErreursForm(form, err.erreurs);
+      PGA_UI.toast(err.message, 'warning');
+    } else {
+      PGA_UI.toast(err.message || 'Erreur', 'error');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enregistrer';
+  }
+}
+
+async function modifierAsbc(id) {
+  try {
+    const res = await PGA_API.asbc.detail(id);
+    ouvrirDrawer(res.asbc || res);
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur', 'error');
+  }
+}
+
+// ── UTILS CSV ─────────────────────────────────────────────────────────────────
+function jsonToCsv(data) {
+  if (!data?.length) return '';
+  const keys = Object.keys(data[0]);
+  const rows = data.map(row => keys.map(k => `"${(row[k] ?? '').toString().replace(/"/g,'""')}"`).join(','));
+  return [keys.join(','), ...rows].join('\n');
+}
+function downloadCsv(csv, filename) {
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+</script>
+</body>
+</html>

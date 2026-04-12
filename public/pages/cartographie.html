@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Cartographie</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<style>
+/* ── VARIABLES & RESET ── */
+:root {
+  --bg:#0D1117; --bg2:#161B24; --bg3:#1E2530; --bg4:#252D3A;
+  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.12);
+  --text:#E8EDF5; --text2:#8A97AC; --text3:#5A6578;
+  --green:#2ECC7A; --amber:#F0A030; --red:#E8524A; --blue:#5B9CF6;
+  --r:8px; --r-lg:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:50;}
+.logo-area{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.logo-badge{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:32px;height:32px;background:var(--green);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:#0D1117;letter-spacing:-.04em;}
+.logo-armoirie{width:34px;height:34px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--text);letter-spacing:-.02em;}
+.logo-sub{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+.nav-section{padding:14px 12px 8px;flex:1;overflow-y:auto;}
+.nav-group{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;
+  padding:0 8px;margin:12px 0 5px;}
+.nav-group:first-child{margin-top:0;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);
+  cursor:pointer;transition:background .15s;margin-bottom:2px;color:var(--text2);text-decoration:none;}
+.nav-item:hover{background:var(--bg3);}
+.nav-item.active{background:rgba(46,204,122,.08);color:var(--green);}
+.nav-item svg{width:16px;height:16px;fill:currentColor;flex-shrink:0;opacity:.7;}
+.nav-item.active svg{opacity:1;}
+.nav-item span{font-size:13px;font-weight:500;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;
+  font-size:10px;font-weight:700;padding:2px 6px;font-family:'IBM Plex Mono',monospace;}
+.sidebar-footer{padding:14px 12px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r);cursor:pointer;transition:background .15s;}
+.user-row:hover{background:var(--bg3);}
+.user-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#D4724A,#F0A030);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-name{font-size:13px;font-weight:600;color:var(--text);}
+.user-role{font-size:10px;color:var(--text3);}
+
+/* ── MAIN / TOPBAR ── */
+.main{flex:1;display:flex;flex-direction:column;margin-left:220px;min-height:100vh;}
+.topbar{height:56px;background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;position:sticky;top:0;z-index:40;}
+.page-title{font-family:'Syne',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.03em;}
+
+/* ── MAP LAYOUT ── */
+.map-container { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+.map-sidebar   { width: 280px; flex-shrink: 0; background: var(--bg2); border-right: 1px solid var(--border);
+                  display: flex; flex-direction: column; overflow: hidden; }
+.map-wrap      { flex: 1; position: relative; }
+#map           { width: 100%; height: 100%; background: #0D1117; }
+
+/* ── MAP SIDEBAR ── */
+.ms-head    { padding: 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.ms-title   { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: var(--text);
+               margin-bottom: 12px; }
+.ms-body    { flex: 1; overflow-y: auto; padding: 14px; }
+.ms-body::-webkit-scrollbar { width: 4px; }
+.ms-body::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+/* ── LÉGENDE ── */
+.legend-title { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase;
+                 letter-spacing: .1em; margin-bottom: 10px; }
+.legend-item  { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; color: var(--text2); }
+.legend-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+/* ── INDICATEUR SÉLECTIONNÉ ── */
+.sel-panel     { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r-lg);
+                  padding: 16px; margin-top: 14px; animation: rise .25s ease; }
+.sel-title     { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--text);
+                  margin-bottom: 4px; }
+.sel-region    { font-size: 11px; color: var(--text3); margin-bottom: 14px; }
+.sel-stat      { display: flex; justify-content: space-between; align-items: baseline;
+                  padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.sel-stat:last-child { border-bottom: none; }
+.sel-lbl       { font-size: 11px; color: var(--text3); }
+.sel-val       { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text); }
+
+/* ── FILTRES ── */
+.map-ctrl  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mc-sel    { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r);
+              padding: 6px 10px; font-size: 12px; color: var(--text); font-family: 'Instrument Sans', sans-serif;
+              outline: none; cursor: pointer; min-width: 110px; }
+
+/* ── KPI MINI (haut de la sidebar carte) ── */
+.carte-kpi { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.ck-card   { background: var(--bg3); border-radius: var(--r); padding: 10px 12px; }
+.ck-val    { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -.04em; line-height: 1; }
+.ck-lbl    { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-top: 4px; }
+
+/* ── BARRE STATS ── */
+.stat-bar { height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+.stat-bar-fill { height: 100%; border-radius: 2px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+
+/* ── LOADER ── */
+.map-loader { position: absolute; inset: 0; background: rgba(13,17,23,.85);
+               display: flex; align-items: center; justify-content: center;
+               z-index: 1000; flex-direction: column; gap: 12px; }
+.map-loader-txt { font-size: 13px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; }
+
+/* ── TOOLTIP LEAFLET CUSTOM ── */
+.pga-tooltip { background: #1E2530 !important; border: 1px solid rgba(255,255,255,.12) !important;
+                border-radius: 8px !important; padding: 10px 14px !important;
+                box-shadow: 0 8px 24px rgba(0,0,0,.5) !important; }
+.pga-tooltip::before { display: none !important; }
+.tt-prov  { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: #E8EDF5; margin-bottom: 4px; }
+.tt-reg   { font-size: 11px; color: #5A6578; margin-bottom: 8px; }
+.tt-row   { display: flex; justify-content: space-between; gap: 20px; font-size: 12px; color: #8A97AC; }
+.tt-row span { font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: #E8EDF5; }
+
+@keyframes rise { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar"></aside>
+<main class="main">
+  <header class="topbar" id="topbar"></header>
+
+  <div class="map-container">
+    <!-- Sidebar gauche : légende + détail province -->
+    <div class="map-sidebar">
+      <div class="ms-head">
+        <div class="ms-title">Cartographie ASBC</div>
+        <div class="map-ctrl">
+          <select class="mc-sel" id="sel-indicateur" onchange="mettreAJourCarte()">
+            <option value="taux_fonctionnalite">Fonctionnalité</option>
+            <option value="taux_couverture">Couverture villages</option>
+            <option value="nb_asbc">Nb ASBC</option>
+          </select>
+          <select class="mc-sel" id="sel-periode" onchange="chargerDonneesCarte()"></select>
+        </div>
+      </div>
+      <div class="ms-body">
+        <!-- KPI globaux -->
+        <div class="carte-kpi" id="carte-kpi">
+          <div class="ck-card"><div class="ck-val" style="color:var(--green)">—</div><div class="ck-lbl">Fonctionnalité moy.</div></div>
+          <div class="ck-card"><div class="ck-val" style="color:var(--blue)">—</div><div class="ck-lbl">Couverture moy.</div></div>
+          <div class="ck-card"><div class="ck-val" style="color:var(--text)">—</div><div class="ck-lbl">Provinces</div></div>
+          <div class="ck-card"><div class="ck-val" style="color:var(--text)">—</div><div class="ck-lbl">ASBC actifs</div></div>
+        </div>
+
+        <!-- Légende choroplèthe -->
+        <div class="legend-title">Niveau de fonctionnalité</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#2ECC7A"></div>≥ 80% — Performant</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#5B9CF6"></div>60 – 79% — Satisfaisant</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#F0A030"></div>40 – 59% — À améliorer</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#E8524A"></div>&lt; 40% — Critique</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#252D3A"></div>Aucune donnée</div>
+
+        <!-- Détail province sélectionnée -->
+        <div id="sel-detail" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- Carte Leaflet -->
+    <div class="map-wrap">
+      <div id="map-loader" class="map-loader">
+        <div id="loader-spinner"></div>
+        <div class="map-loader-txt">Chargement de la carte…</div>
+      </div>
+      <div id="map"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+// Source GeoJSON Burkina Faso — Niveau 2 = 45 provinces (ADM2)
+// Fichier local converti depuis GADM 4.0 shapefile (gadm40_BFA_2.shp)
+// Propriétés : NAME_2 = nom province, NAME_1 = région
+const GEOJSON_LOCAL = '../data/bfa_provinces.geojson';
+
+let map, geoLayer, statsParProvince = {}, indicateur = 'taux_fonctionnalite';
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await PGA_LAYOUT.init('cartographie', 'Cartographie');
+  if (!user) return;
+
+  // Sélecteur période
+  const sel = document.getElementById('sel-periode');
+  const today = new Date();
+  for (let i = 0; i < 12; i++) {
+    let year = today.getFullYear();
+    let month = today.getMonth() - i;
+
+    // Gérer les mois négatifs en ajustant l'année
+    while (month < 0) {
+      month += 12;
+      year--;
+    }
+
+    const d = new Date(year, month, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    sel.appendChild(new Option(lbl, val, i === 0, i === 0));
+  }
+
+  // Initialiser la carte Leaflet (tile dark)
+  initMap();
+
+  // Charger GeoJSON Burkina + données stats en parallèle
+  await chargerDonneesCarte();
+});
+
+// ── INIT LEAFLET ─────────────────────────────────────────────────────────────
+function initMap() {
+  map = L.map('map', {
+    center:    [12.35, -1.56],
+    zoom:      7,
+    zoomControl: false,
+    attributionControl: false,
+  });
+
+  // Tuile sombre (CartoDB dark)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', maxZoom: 12,
+  }).addTo(map);
+
+  // Labels par-dessus
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd', maxZoom: 12, opacity: 0.6,
+  }).addTo(map);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  L.control.attribution({ position: 'bottomleft', prefix: '© OpenStreetMap · GADM · INSD' }).addTo(map);
+}
+
+// ── CHARGER DONNÉES ──────────────────────────────────────────────────────────
+async function chargerDonneesCarte() {
+  const periode = document.getElementById('sel-periode').value;
+  document.getElementById('map-loader').style.display = 'flex';
+  document.getElementById('loader-spinner').innerHTML = PGA_UI.spinnerHtml(28);
+
+  try {
+    const [geoJson, statsRes] = await Promise.all([
+      chargerGeoJson(),
+      PGA_API.geo.carte({ periode }),
+    ]);
+
+    // Indexer stats par nom de province (normalisé)
+    statsParProvince = {};
+    (statsRes.data || []).forEach(p => {
+      statsParProvince[normaliserNom(p.nom)] = p;
+    });
+
+    // Calculer KPI globaux
+    renderKpiGlobaux(statsRes.data || []);
+
+    // Appliquer le GeoJSON sur la carte
+    dessinerCarte(geoJson);
+
+  } catch (err) {
+    PGA_UI.toast('Erreur de chargement de la carte : ' + (err.message || err), 'error');
+    console.error(err);
+  } finally {
+    document.getElementById('map-loader').style.display = 'none';
+  }
+}
+
+// ── CHARGER GEOJSON (avec cache sessionStorage) ───────────────────────────────
+async function chargerGeoJson() {
+  const CACHE_KEY = 'pga_bfa_geojson_adm2_v3';
+  const cached = sessionStorage.getItem(CACHE_KEY);
+  if (cached) return JSON.parse(cached);
+
+  const resp = await fetch(GEOJSON_LOCAL);
+  if (!resp.ok) throw new Error(`Impossible de charger le GeoJSON (HTTP ${resp.status})`);
+  const data = await resp.json();
+  // Normaliser : s'assurer que chaque feature a une propriété _nom standard
+  normaliserFeatures(data);
+  try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch {}
+  console.log('GeoJSON provinces chargé depuis fichier local :', data.features?.length, 'features');
+  return data;
+}
+
+// Normalise les propriétés des différentes sources GeoJSON vers un format commun
+function normaliserFeatures(geojson) {
+  (geojson.features || []).forEach(f => {
+    const p = f.properties || {};
+    // GADM 4.1 Level 2 : NAME_2 = province, NAME_1 = région
+    // geoBoundaries ADM2 : shapeName = province
+    f.properties._nom    = p.NAME_2 || p.shapeName || p.name || p.NOM || '';
+    f.properties._region = p.NAME_1 || p.shapeGroup || '';
+  });
+}
+
+// ── DESSINER ──────────────────────────────────────────────────────────────────
+function dessinerCarte(geoJson) {
+  if (geoLayer) { map.removeLayer(geoLayer); geoLayer = null; }
+
+  geoLayer = L.geoJSON(geoJson, {
+    style:       featureStyle,
+    onEachFeature: featureEvents,
+  }).addTo(map);
+
+  // Centrer sur le Burkina
+  try { map.fitBounds(geoLayer.getBounds(), { padding: [20, 20] }); } catch {}
+}
+
+// ── STYLE CHOROPLÈTHE ─────────────────────────────────────────────────────────
+function featureStyle(feature) {
+  const nom   = normaliserNom(nomDepuisFeature(feature));
+  const stats = statsParProvince[nom];
+  const val   = stats ? (stats[indicateur] ?? null) : null;
+  return {
+    fillColor:   couleurVal(val, indicateur),
+    fillOpacity: stats ? 0.75 : 0.25,
+    color:       'rgba(255,255,255,.15)',
+    weight:      1,
+    dashArray:   null,
+  };
+}
+
+// ── COULEUR SELON VALEUR ──────────────────────────────────────────────────────
+function couleurVal(val, ind) {
+  if (val === null || val === undefined) return '#252D3A';
+  if (ind === 'nb_asbc') {
+    if (val === 0) return '#252D3A';
+    if (val < 5)   return '#E8524A';
+    if (val < 15)  return '#F0A030';
+    if (val < 30)  return '#5B9CF6';
+    return '#2ECC7A';
+  }
+  // Pourcentage (taux_fonctionnalite, taux_couverture)
+  if (val >= 80) return '#2ECC7A';
+  if (val >= 60) return '#5B9CF6';
+  if (val >= 40) return '#F0A030';
+  return '#E8524A';
+}
+
+// ── ÉVÈNEMENTS FEATURE ────────────────────────────────────────────────────────
+function featureEvents(feature, layer) {
+  const nom   = normaliserNom(nomDepuisFeature(feature));
+  const stats = statsParProvince[nom];
+  const label = nomDepuisFeature(feature);
+
+  // Tooltip au survol
+  layer.bindTooltip(buildTooltip(label, stats, feature), {
+    className: 'pga-tooltip', sticky: true, opacity: 1,
+  });
+
+  layer.on({
+    mouseover: e => {
+      e.target.setStyle({ fillOpacity: 0.92, weight: 2, color: 'rgba(255,255,255,.4)' });
+      e.target.bringToFront();
+    },
+    mouseout: e => geoLayer.resetStyle(e.target),
+    click:    e => {
+      afficherDetailProvince(label, stats);
+      map.fitBounds(e.target.getBounds(), { padding: [60, 60], maxZoom: 10 });
+    },
+  });
+}
+
+// ── TOOLTIP ───────────────────────────────────────────────────────────────────
+function buildTooltip(nom, s, feature) {
+  // Région depuis les stats backend ou depuis les propriétés GeoJSON (_region = NAME_1)
+  const region = s?.region || feature?.properties?._region || '—';
+  if (!s) return `<div class="tt-prov">${PGA_UI.escapeHtml(nom)}</div><div class="tt-reg">${PGA_UI.escapeHtml(region)}</div><div class="tt-row" style="color:var(--text3);font-size:11px">Aucune donnée pour cette période</div>`;
+  return `
+    <div class="tt-prov">${PGA_UI.escapeHtml(nom)}</div>
+    <div class="tt-reg">${PGA_UI.escapeHtml(region)}</div>
+    <div class="tt-row">Fonctionnalité <span>${(s.taux_fonctionnalite||0).toFixed(1)}%</span></div>
+    <div class="tt-row">Couverture villages <span>${(s.taux_couverture||0).toFixed(1)}%</span></div>
+    <div class="tt-row">ASBC actifs <span>${s.nb_asbc||0}</span></div>
+  `;
+}
+
+// ── DÉTAIL PROVINCE (sidebar) ─────────────────────────────────────────────────
+function afficherDetailProvince(nom, s) {
+  const el = document.getElementById('sel-detail');
+  if (!s) {
+    el.innerHTML = `<div class="sel-panel"><div class="sel-title">${PGA_UI.escapeHtml(nom)}</div><div class="sel-region">Aucune donnée disponible.</div></div>`;
+    el.style.display = 'block';
+    return;
+  }
+  const taux  = s.taux_fonctionnalite || 0;
+  const couv  = s.taux_couverture     || 0;
+  const col   = couleurVal(taux, 'taux_fonctionnalite');
+  el.innerHTML = `
+    <div class="sel-panel">
+      <div class="sel-title">${PGA_UI.escapeHtml(nom)}</div>
+      <div class="sel-region">${PGA_UI.escapeHtml(s.region || '—')}</div>
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:10px;color:var(--text3)">FONCTIONNALITÉ</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:${col}">${taux.toFixed(1)}%</span>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:${taux}%;background:${col}"></div></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="font-size:10px;color:var(--text3)">COUVERTURE VILLAGES</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:var(--blue)">${couv.toFixed(1)}%</span>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:${couv}%;background:var(--blue)"></div></div>
+      </div>
+      <div class="sel-stat"><span class="sel-lbl">ASBC actifs</span><span class="sel-val">${s.nb_asbc||0}</span></div>
+      <div class="sel-stat"><span class="sel-lbl">Fonctionnels</span><span class="sel-val" style="color:var(--green)">${s.nb_fonctionnels||0}</span></div>
+      <div class="sel-stat"><span class="sel-lbl">Non-fonctionnels</span><span class="sel-val" style="color:var(--amber)">${s.nb_non_fonctionnels||0}</span></div>
+      <div class="sel-stat"><span class="sel-lbl">Villages couverts</span><span class="sel-val">${s.villages_couverts||0} / ${s.total_villages||0}</span></div>
+      <div class="sel-stat"><span class="sel-lbl">Promptitude</span><span class="sel-val">${(s.taux_promptitude||0).toFixed(1)}%</span></div>
+    </div>
+  `;
+  el.style.display = 'block';
+}
+
+// ── KPI GLOBAUX (haut sidebar) ───────────────────────────────────────────────
+function renderKpiGlobaux(data) {
+  if (!data.length) return;
+  const avecDonnees = data.filter(p => p.nb_asbc > 0);
+  const moyFonct = avecDonnees.length
+    ? (avecDonnees.reduce((s, p) => s + (p.taux_fonctionnalite || 0), 0) / avecDonnees.length).toFixed(1)
+    : '—';
+  const moyCouv  = avecDonnees.length
+    ? (avecDonnees.reduce((s, p) => s + (p.taux_couverture || 0), 0)    / avecDonnees.length).toFixed(1)
+    : '—';
+  const totalAsbc = data.reduce((s, p) => s + (p.nb_asbc || 0), 0);
+
+  const cards = document.querySelectorAll('#carte-kpi .ck-val');
+  if (cards[0]) cards[0].textContent = moyFonct + '%';
+  if (cards[1]) cards[1].textContent = moyCouv  + '%';
+  if (cards[2]) cards[2].textContent = data.length;
+  if (cards[3]) cards[3].textContent = totalAsbc.toLocaleString('fr-FR');
+}
+
+// ── MISE À JOUR INDICATEUR (sans recharger stats) ─────────────────────────────
+function mettreAJourCarte() {
+  indicateur = document.getElementById('sel-indicateur').value;
+  if (geoLayer) geoLayer.setStyle(featureStyle);
+
+  // Mettre à jour légende
+  const legende = document.querySelectorAll('.legend-item');
+  const estNb   = indicateur === 'nb_asbc';
+  if (legende[0]) legende[0].childNodes[1].textContent = estNb ? '≥ 30 — Élevé'      : '≥ 80% — Performant';
+  if (legende[1]) legende[1].childNodes[1].textContent = estNb ? '15 – 29 — Moyen'   : '60 – 79% — Satisfaisant';
+  if (legende[2]) legende[2].childNodes[1].textContent = estNb ? '5 – 14 — Faible'   : '40 – 59% — À améliorer';
+  if (legende[3]) legende[3].childNodes[1].textContent = estNb ? '< 5 — Très faible' : '< 40% — Critique';
+}
+
+// ── UTILITAIRES ───────────────────────────────────────────────────────────────
+// Extraire le nom de province depuis la feature (propriété _nom normalisée)
+function nomDepuisFeature(f) {
+  return f.properties?._nom || f.properties?.NAME_2 || f.properties?.shapeName || f.properties?.name || 'Inconnu';
+}
+
+// Normaliser le nom pour la correspondance GADM ↔ base de données
+function normaliserNom(nom) {
+  if (!nom) return '';
+  return nom.trim()
+    .toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // Supprimer accents
+    .replace(/['\-\s]+/g, ' ')                          // Unifier séparateurs
+    .replace(/^(PROVINCE\s+D[EUO]?'?\s*)/i, '')         // Supprimer "Province de/du"
+    .trim();
+}
+</script>
+</body>
+</html>

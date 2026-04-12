@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Instrument Sans', sans-serif;
+    background: #FFFFFF;
+    min-height: 100vh;
+    display: flex;
+    position: relative;
+  }
+
+  /* ── Panneau gauche : branding officiel ── */
+  .brand-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 40px;
+    position: relative;
+    background: #FFFFFF;
+    overflow: hidden;
+  }
+
+  /* Photo ASBC en fond subtil */
+  .brand-panel::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url('../img/ASBC.jpg') center/cover no-repeat;
+    opacity: .45;
+    pointer-events: none;
+  }
+
+  .brand-panel::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.4) 40%, rgba(255,255,255,.75) 100%);
+    pointer-events: none;
+  }
+
+  .brand-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    max-width: 440px;
+  }
+
+  .armoirie {
+    width: 130px;
+    height: auto;
+    margin-bottom: 28px;
+    filter: drop-shadow(0 4px 16px rgba(0,0,0,.1));
+    animation: fadeScale .8s ease both;
+  }
+
+  .brand-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #8A97AC;
+    text-transform: uppercase;
+    letter-spacing: .18em;
+    margin-bottom: 12px;
+  }
+
+  .brand-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 30px;
+    font-weight: 800;
+    color: #1A1F2E;
+    letter-spacing: -.03em;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+
+  .brand-name span {
+    color: #1B9E5A;
+  }
+
+  .brand-sub {
+    font-size: 14px;
+    color: #6B7A8D;
+    line-height: 1.7;
+    margin-bottom: 36px;
+  }
+
+  .brand-stats {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+  }
+
+  .brand-stat {
+    text-align: center;
+  }
+
+  .brand-stat-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1B9E5A;
+    letter-spacing: -.03em;
+  }
+
+  .brand-stat-label {
+    font-size: 10px;
+    color: #8A97AC;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-top: 4px;
+  }
+
+  .brand-footer {
+    position: absolute;
+    bottom: 28px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: #A0AABB;
+    line-height: 1.5;
+    z-index: 1;
+  }
+
+  /* ── Panneau droit : formulaire ── */
+  .login-panel {
+    width: 480px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 52px;
+    background: #F5F7FA;
+    border-left: 1px solid #E4E8EE;
+    position: relative;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 360px;
+    animation: rise .5s ease both;
+  }
+
+  .login-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+
+  .login-logo img {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    object-fit: contain;
+  }
+
+  .login-logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    color: #1A1F2E;
+    letter-spacing: -.02em;
+  }
+
+  .login-logo-sub {
+    font-size: 10px;
+    color: #8A97AC;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-top: 2px;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1A1F2E;
+    letter-spacing: -.03em;
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #8A97AC;
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+
+  .field {
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6B7A8D;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 8px;
+  }
+
+  input {
+    width: 100%;
+    background: #FFFFFF;
+    border: 1px solid #D8DEE6;
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #1A1F2E;
+    font-family: 'Instrument Sans', sans-serif;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+
+  input:focus {
+    border-color: #1B9E5A;
+    box-shadow: 0 0 0 3px rgba(27,158,90,.1);
+  }
+
+  input::placeholder { color: #B8C1CC; }
+
+  .btn-submit {
+    width: 100%;
+    padding: 13px;
+    background: #1B9E5A;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #FFFFFF;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s, box-shadow .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    letter-spacing: -.01em;
+    box-shadow: 0 4px 16px rgba(27,158,90,.2);
+  }
+
+  .btn-submit:hover { opacity: .92; box-shadow: 0 6px 24px rgba(27,158,90,.3); }
+  .btn-submit:active { transform: scale(.98); }
+  .btn-submit:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+  .err-global {
+    background: rgba(232,82,74,.06);
+    border: 1px solid rgba(232,82,74,.2);
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-size: 12px;
+    color: #D03E36;
+    margin-bottom: 20px;
+    display: none;
+    line-height: 1.5;
+  }
+
+  .footer-note {
+    text-align: center;
+    font-size: 11px;
+    color: #A0AABB;
+    margin-top: 32px;
+    line-height: 1.6;
+  }
+
+  .footer-note a {
+    color: #6B7A8D;
+    text-decoration: none;
+  }
+
+  .footer-note a:hover { color: #1A1F2E; }
+
+  /* ── Animations ── */
+  @keyframes fadeScale {
+    from { opacity: 0; transform: scale(.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    body { flex-direction: column; }
+
+    .brand-panel {
+      min-height: auto;
+      padding: 40px 24px 32px;
+    }
+
+    .armoirie { width: 90px; margin-bottom: 20px; }
+    .brand-name { font-size: 22px; }
+    .brand-sub { margin-bottom: 20px; font-size: 13px; }
+    .brand-stats { gap: 24px; }
+    .brand-stat-value { font-size: 18px; }
+    .brand-footer { display: none; }
+
+    .login-panel {
+      width: 100%;
+      min-height: auto;
+      padding: 32px 24px 48px;
+      border-left: none;
+      border-top: 1px solid #E4E8EE;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .brand-stats { flex-direction: column; gap: 16px; }
+    .login-panel { padding: 28px 20px 40px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Panneau gauche : branding ── -->
+<div class="brand-panel">
+  <div class="brand-content">
+    <img src="../img/Armoirie.webp" alt="Armoiries du Burkina Faso" class="armoirie">
+    <div class="brand-title">Burkina Faso</div>
+    <div class="brand-name">Plateforme de Gestion<br>des <span>ASBC</span></div>
+    <p class="brand-sub">
+      Suivi, coordination et pilotage des Agents de Sant&eacute;<br>
+      &agrave; Base Communautaire sur l'ensemble du territoire national.
+    </p>
+    <div class="brand-stats">
+      <div class="brand-stat">
+        <div class="brand-stat-value">13</div>
+        <div class="brand-stat-label">R&eacute;gions</div>
+      </div>
+      <div class="brand-stat">
+        <div class="brand-stat-value">70</div>
+        <div class="brand-stat-label">Districts</div>
+      </div>
+      <div class="brand-stat">
+        <div class="brand-stat-value">17 000+</div>
+        <div class="brand-stat-label">ASBC</div>
+      </div>
+    </div>
+  </div>
+  <div class="brand-footer">
+    Minist&egrave;re de la Sant&eacute; et de l'Hygi&egrave;ne Publique<br>
+    Direction de la Sant&eacute; Communautaire
+  </div>
+</div>
+
+<!-- ── Panneau droit : connexion ── -->
+<div class="login-panel">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="../img/Armoirie.webp" alt="PGA">
+      <div>
+        <div class="login-logo-text">PGA</div>
+        <div class="login-logo-sub">Burkina Faso</div>
+      </div>
+    </div>
+
+    <h1>Connexion</h1>
+    <p class="subtitle">Acc&egrave;s r&eacute;serv&eacute; aux agents autoris&eacute;s DSC&nbsp;/&nbsp;DRS&nbsp;/&nbsp;Districts</p>
+
+    <div class="err-global" id="err-global"></div>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Adresse email</label>
+        <input type="email" id="email" name="email" placeholder="vous@dsc.gov.bf" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" name="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn-submit" id="btn-login">
+        Se connecter
+      </button>
+    </form>
+
+    <p class="footer-note">
+      Probl&egrave;me de connexion ?<br>
+      <a href="mailto:support@dsc.gov.bf">Contactez le point focal DSC</a>
+    </p>
+  </div>
+</div>
+
+<script>
+  if (PGA_API.auth.estConnecte()) {
+    window.location.href = 'dashboard.html';
+  }
+
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn     = document.getElementById('btn-login');
+    const errDiv  = document.getElementById('err-global');
+    const email   = document.getElementById('email').value;
+    const password= document.getElementById('password').value;
+
+    btn.disabled = true;
+    btn.innerHTML = `<span style="width:16px;height:16px;border:2px solid #ffffff33;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span> Connexion&hellip;`;
+    errDiv.style.display = 'none';
+
+    try {
+      await PGA_API.auth.connexion(email, password);
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      errDiv.textContent = (err.erreurs ? Object.values(err.erreurs).flat()[0] : null) || err.message || 'Erreur de connexion.';
+      errDiv.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Se connecter';
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,22 +1,24 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Agent\AgentController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\ConfigController;
 use App\Http\Controllers\Geo\GeoController;
+use App\Http\Controllers\Report\ReportController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| PGA Open — API Routes
+| PGA Open \u2014 API Routes v1
 |--------------------------------------------------------------------------
-| Toutes les routes passent par le middleware TenantResolver qui configure
-| la connexion DB et la config PGA du tenant courant.
+| Toutes les routes passent par TenantResolver (middleware global API).
 */
 
-// ── Config publique (pas d'auth) ────────────────────────────────────────────
+// \u2500\u2500 Config publique (sans auth) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 Route::get('/v1/config', ConfigController::class);
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
+// \u2500\u2500 Auth \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 Route::prefix('v1/auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
     Route::middleware('auth:sanctum')->group(function () {
@@ -26,10 +28,10 @@ Route::prefix('v1/auth')->group(function () {
     });
 });
 
-// ── Routes authentifi\u00e9es ────────────────────────────────────────────────────
-Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
+// \u2500\u2500 Routes authentifi\u00e9es \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+Route::middleware(['auth:sanctum', 'zone.access'])->prefix('v1')->group(function () {
 
-    // G\u00e9ographie
+    // G\u00e9ographie dynamique
     Route::prefix('geo')->group(function () {
         Route::get('/levels', [GeoController::class, 'levels']);
         Route::get('/units', [GeoController::class, 'units']);
@@ -37,10 +39,33 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         Route::get('/units/{id}/ancestors', [GeoController::class, 'ancestors']);
     });
 
-    // TODO Phase 4+ : Agent CRUD, Statuts, Paiements, Rapports, Admin
-    // Route::prefix('agents')->group(function () { ... });
-    // Route::prefix('functionality')->group(function () { ... });
-    // Route::prefix('payments')->group(function () { ... });
-    // Route::prefix('reports')->group(function () { ... });
-    // Route::prefix('admin')->group(function () { ... });
+    // Agents (ex-ASBC)
+    Route::prefix('agents')->group(function () {
+        Route::get('/', [AgentController::class, 'index']);
+        Route::post('/', [AgentController::class, 'store'])->middleware('role:admin_dsc,superviseur_dsc,rps,icp');
+        Route::get('/indicateurs', [AgentController::class, 'indicateurs']);
+        Route::get('/{agent}', [AgentController::class, 'show']);
+        Route::patch('/{agent}', [AgentController::class, 'update'])->middleware('role:admin_dsc,superviseur_dsc,rps,icp');
+        Route::post('/{agent}/valider', [AgentController::class, 'valider'])->middleware('role:admin_dsc,superviseur_dsc');
+        Route::post('/{agent}/rejeter', [AgentController::class, 'rejeter'])->middleware('role:admin_dsc,superviseur_dsc');
+        Route::post('/{agent}/desactiver', [AgentController::class, 'desactiver'])->middleware('role:admin_dsc,superviseur_dsc,rps,icp');
+        Route::post('/{agent}/reactiver', [AgentController::class, 'reactiver'])->middleware('role:admin_dsc,superviseur_dsc');
+    });
+
+    // Rapports & Dashboard
+    Route::prefix('reports')->group(function () {
+        Route::get('/dashboard', [ReportController::class, 'dashboard']);
+        Route::get('/agents', [ReportController::class, 'listeAgents']);
+        Route::get('/id-documents', [ReportController::class, 'idDocuments']);
+    });
+
+    // Administration (admin DSC uniquement)
+    Route::prefix('admin/users')->middleware('role:admin_dsc,superviseur_dsc')->group(function () {
+        Route::get('/', [AdminController::class, 'index']);
+        Route::post('/', [AdminController::class, 'store']);
+        Route::get('/{utilisateur}', [AdminController::class, 'show']);
+        Route::patch('/{utilisateur}', [AdminController::class, 'update']);
+        Route::delete('/{utilisateur}', [AdminController::class, 'destroy']);
+        Route::post('/{utilisateur}/reset-password', [AdminController::class, 'reinitialiserMotDePasse']);
+    });
 });

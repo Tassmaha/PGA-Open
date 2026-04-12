@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Statuts de fonctionnement</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/pga-shared.css">
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<style>
+/* ── TAUX CARDS ── */
+.taux-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.taux-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 16px 18px; position: relative; overflow: hidden;
+  animation: rise .4s ease both;
+}
+.taux-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.taux-label { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+.taux-val   { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -.04em; line-height: 1; margin-bottom: 5px; }
+.taux-sub   { font-size: 11px; color: var(--text3); font-family: 'IBM Plex Mono', monospace; }
+
+/* ── FENÊTRE SAISIE ── */
+.session-bar {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 12px 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.session-item { display: flex; flex-direction: column; gap: 2px; }
+.session-lbl  { font-size: 9px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .1em; }
+.session-val  { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text); font-weight: 500; }
+.session-sep  { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+.session-statut {
+  margin-left: auto; padding: 5px 12px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; font-family: 'IBM Plex Mono', monospace;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+
+/* ── CRITÈRES (cases à cocher) ── */
+.critere-group {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px;
+}
+.critere-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 12px 14px; cursor: pointer; transition: all .15s; user-select: none;
+  display: flex; align-items: center; gap: 10px;
+}
+.critere-card:hover     { border-color: var(--border2); }
+.critere-card.checked   { background: rgba(46,204,122,.08); border-color: rgba(46,204,122,.3); }
+.critere-card.unchecked { background: rgba(232,82,74,.05); border-color: rgba(232,82,74,.25); }
+.critere-check {
+  width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--border2);
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.critere-card.checked   .critere-check  { background: var(--green); border-color: var(--green); }
+.critere-card.unchecked .critere-check  { background: rgba(232,82,74,.2); border-color: var(--red); }
+.critere-check svg { width: 12px; height: 12px; fill: #0D1117; display: none; }
+.critere-card.checked .critere-check svg { display: block; }
+.critere-label { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.critere-sub   { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* ── PROGRESS BAR ── */
+.prog-wrap { height: 5px; background: var(--bg4); border-radius: 3px; overflow: hidden; margin-top: 5px; }
+.prog-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+
+/* ── VALIDATION WORKFLOW ── */
+.workflow-steps {
+  display: flex; gap: 0; margin-bottom: 18px; overflow: hidden; border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+}
+.wf-step {
+  flex: 1; padding: 12px 14px; text-align: center;
+  border-right: 1px solid var(--border); background: var(--bg3);
+}
+.wf-step:last-child { border-right: none; }
+.wf-step.done { background: rgba(46,204,122,.06); }
+.wf-step.current { background: rgba(91,156,246,.08); }
+.wf-icon  { font-size: 18px; margin-bottom: 4px; }
+.wf-label { font-size: 10px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; }
+.wf-sub   { font-size: 10px; color: var(--text3); margin-top: 2px; }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar"></aside>
+<main class="main">
+  <header class="topbar" id="topbar"></header>
+  <div class="content">
+
+    <!-- Sélecteur période + filtre zone -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+      <div class="form-field" style="margin:0">
+        <div id="sel-periode-multi"></div>
+      </div>
+      <div id="geo-mini" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      <button id="btn-marquer-directeur" class="btn-secondary btn-sm" style="margin-left:auto;display:none" onclick="marquerTousLuDirecteur()">
+        👁 Tout marquer vu
+      </button>
+      <button id="btn-saisir" class="btn-primary btn-sm" style="display:none" onclick="ouvrirSaisie()">
+        <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:#0D1117"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Saisir un statut
+      </button>
+    </div>
+
+    <!-- Fenêtre de saisie en cours -->
+    <div class="session-bar" id="session-bar" style="display:none"></div>
+
+    <!-- Taux -->
+    <div class="taux-row" id="taux-row">
+      <div class="taux-card skel" style="height:90px;animation-delay:.05s"></div>
+      <div class="taux-card skel" style="height:90px;animation-delay:.10s"></div>
+      <div class="taux-card skel" style="height:90px;animation-delay:.15s"></div>
+      <div class="taux-card skel" style="height:90px;animation-delay:.20s"></div>
+    </div>
+
+    <!-- Workflow -->
+    <div class="workflow-steps" id="workflow-steps"></div>
+
+    <!-- Tabs -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <div class="tabs">
+        <div class="tab active" data-val=""         onclick="changerFiltreVal(this)">Tous</div>
+        <div class="tab" data-val="fonctionnel"     onclick="changerFiltreVal(this)">Fonctionnels <span class="count" id="cnt-fonct">—</span></div>
+        <div class="tab" data-val="non_fonctionnel" onclick="changerFiltreVal(this)">Non fonct. <span class="count" id="cnt-nonfonct">—</span></div>
+        <div class="tab" data-val="incomplet"       onclick="changerFiltreVal(this)">Incomplets <span class="count" id="cnt-incomplet">—</span></div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" data-valid=""              onclick="changerFiltreValid(this)">Tous</div>
+        <div class="tab" data-valid="brouillon"            onclick="changerFiltreValid(this)">Brouillon</div>
+        <div class="tab" data-valid="valide_rps"           onclick="changerFiltreValid(this)">Validé RPS</div>
+        <div class="tab" data-valid="lu_directeur"         onclick="changerFiltreValid(this)">Lu Directeur</div>
+        <div class="tab" data-valid="verrouille"           onclick="changerFiltreValid(this)">Verrouillé</div>
+      </div>
+    </div>
+
+    <!-- Table statuts -->
+    <div class="panel">
+      <table class="data-table">
+        <thead><tr>
+          <th>ASBC</th>
+          <th>Localisation</th>
+          <th title="Outils / Activités / RMA / Réunion">4 Critères</th>
+          <th>Statut global</th>
+          <th>Validation</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody id="statuts-tbody">
+          <tr><td colspan="6" class="empty-state"><div class="ico">⏳</div><p>Chargement…</p></td></tr>
+        </tbody>
+      </table>
+      <div id="pagination-statuts"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Drawer saisie statut -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="fermerDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-title" id="drawer-title">Saisir un statut</div>
+    <div class="drawer-close" onclick="fermerDrawer()">×</div>
+  </div>
+  <div class="drawer-body" id="drawer-body">
+
+    <!-- Recherche ASBC -->
+    <div id="etape-recherche">
+      <div class="form-section">
+        <div class="form-section-title">Sélectionner l'ASBC</div>
+        <div class="search-wrap" style="margin-bottom:12px">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input class="search-input" type="text" id="asbc-search" placeholder="Rechercher par nom, code ASBC…" oninput="rechercherAsbc()">
+        </div>
+        <div id="asbc-results" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <!-- Formulaire critères -->
+    <div id="etape-criteres" style="display:none">
+      <div style="background:var(--bg3);border-radius:var(--r);padding:12px 14px;margin-bottom:18px" id="asbc-selectionne-info"></div>
+
+      <div class="form-section">
+        <div class="form-section-title">4 Critères de fonctionnalité</div>
+        <div class="critere-group" id="criteres-group">
+          <div class="critere-card" data-key="outils_a_jour" onclick="toggleCritere(this)">
+            <div class="critere-check"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+            <div><div class="critere-label">Outils à jour</div><div class="critere-sub">Registres, outils de travail</div></div>
+          </div>
+          <div class="critere-card" data-key="activites_realisees" onclick="toggleCritere(this)">
+            <div class="critere-check"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+            <div><div class="critere-label">Activités réalisées</div><div class="critere-sub">Activités communautaires</div></div>
+          </div>
+          <div class="critere-card" data-key="rma_produit" onclick="toggleCritere(this)">
+            <div class="critere-check"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+            <div><div class="critere-label">RMA produit</div><div class="critere-sub">Rapport Mensuel d'Activité</div></div>
+          </div>
+          <div class="critere-card" data-key="reunion_participee" onclick="toggleCritere(this)">
+            <div class="critere-check"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+            <div><div class="critere-label">Réunion CSPS</div><div class="critere-sub">Réunion mensuelle participée</div></div>
+          </div>
+        </div>
+
+        <!-- Prévisualisation statut global -->
+        <div id="statut-preview" style="padding:10px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--bg3);font-size:12px;color:var(--text2);margin-bottom:14px">
+          Sélectionnez les critères pour voir le statut calculé.
+        </div>
+
+        <div class="form-field">
+          <label>Commentaire (optionnel)</label>
+          <textarea id="commentaire-icp" placeholder="Observation sur ce statut de fonctionnement…" rows="3"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn-secondary" onclick="fermerDrawer()">Annuler</button>
+    <button class="btn-secondary" id="btn-retour" style="display:none" onclick="retourRecherche()">← Retour</button>
+    <button class="btn-primary" id="btn-enregistrer" style="display:none" onclick="enregistrerStatut()">Enregistrer le statut</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let periode = '', filtreVal = '', filtreValid = '', page = 1;
+let asbcSelectionne = null, statutEditId = null;
+let criteres = { outils_a_jour: null, activites_realisees: null, rma_produit: null, reunion_participee: null };
+let searchTimeout;
+let sessionCourante = null;  // session de saisie de la période active
+let geoCtrl = null;          // contrôleur filtres géographiques (accès module-wide)
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+let currentUser = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  currentUser = await PGA_LAYOUT.init('statuts', 'Statuts de fonctionnement');
+  if (!currentUser) return;
+
+  // Période selector
+  // Multi-select périodes
+  const moisItems = [];
+  const today = new Date();
+  for (let i = 0; i < 6; i++) {
+    let year = today.getFullYear();
+    let month = today.getMonth() - i;
+    while (month < 0) { month += 12; year--; }
+    const d = new Date(year, month, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    moisItems.push({ id: val, nom: d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) });
+  }
+  window.periodeMulti = PGA_UI.multiSelect(document.getElementById('sel-periode-multi'), {
+    placeholder: 'Sélectionner les mois',
+  });
+  window.periodeMulti.setItems(moisItems);
+  periode = moisItems[0].id;
+
+  // Geo mini filter
+  const geoMini = document.getElementById('geo-mini');
+  geoCtrl = await PGA_UI.initFiltresGeoMulti(geoMini, {
+    niveaux: ['region', 'district', 'formation'],
+    onChange: () => { page = 1; chargerStatuts(); chargerTaux(); }
+  });
+
+  await chargerPage();
+});
+
+async function chargerPage() {
+  const selPeriodes = window.periodeMulti?.getValues() || [];
+  periode = selPeriodes.length > 0 ? selPeriodes[0] : new Date().toISOString().slice(0, 7);
+  await Promise.all([chargerTaux(), chargerSession(), chargerStatuts()]);
+}
+
+// ── TAUX ──────────────────────────────────────────────────────────────────────
+async function chargerTaux() {
+  try {
+    const t = await PGA_API.statuts.taux(periode);
+    const cards = [
+      { label: 'Total ASBC',        val: PGA_UI.fmt.nb(t.total_asbc),           sub: 'actifs ce mois',          color: '#E8EDF5', accent: '#5B9CF6' },
+      { label: 'Fonctionnalité',    val: PGA_UI.fmt.pct(t.taux_fonctionnalite), sub: `${PGA_UI.fmt.nb(t.nb_fonctionnels)} / ${PGA_UI.fmt.nb(t.total_asbc)}`, color: '#2ECC7A', accent: '#2ECC7A' },
+      { label: 'Promptitude',       val: PGA_UI.fmt.pct(t.taux_promptitude),    sub: `Avant le 05 du mois`,      color: '#5B9CF6', accent: '#5B9CF6' },
+      { label: 'Taux de saisie',    val: PGA_UI.fmt.pct(t.taux_saisie),         sub: `${PGA_UI.fmt.nb(t.nb_non_saisis)} non saisis`, color: t.taux_saisie >= 80 ? '#2ECC7A' : '#F0A030', accent: t.taux_saisie >= 80 ? '#2ECC7A' : '#F0A030' },
+    ];
+    document.getElementById('taux-row').innerHTML = cards.map((c, i) => `
+      <div class="taux-card" style="animation-delay:${.05 * (i+1)}s">
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--r-lg) var(--r-lg) 0 0;background:${c.accent}"></div>
+        <div class="taux-label">${c.label}</div>
+        <div class="taux-val" style="color:${c.color}">${c.val}</div>
+        <div class="taux-sub">${c.sub}</div>
+      </div>
+    `).join('');
+
+    // Workflow steps — ICP saisit → RPS valide → Directeur lit → Admin verrouille
+    document.getElementById('workflow-steps').innerHTML = [
+      { label: 'Saisie ICP',        sub: `${PGA_UI.fmt.nb(t.nb_saisis)} saisis`,               done: t.nb_saisis > 0,          icon: '✏️' },
+      { label: 'Validation RPS',    sub: `${PGA_UI.fmt.nb(t.nb_valides_rps)} validés`,         done: t.nb_valides_rps > 0,     icon: '✅' },
+      { label: 'Lecture Directeur', sub: `${PGA_UI.fmt.nb(t.nb_lus_directeur)} lus`,           done: t.nb_lus_directeur > 0,   icon: '👁' },
+      { label: 'Verrouillage',      sub: `Le 15 du mois M+1`,                                   done: false,                    icon: '🔒' },
+    ].map((s, i) => `
+      <div class="wf-step ${s.done ? 'done' : i === 1 && t.nb_saisis > 0 ? 'current' : ''}">
+        <div class="wf-icon">${s.icon}</div>
+        <div class="wf-label">${s.label}</div>
+        <div class="wf-sub">${s.sub}</div>
+      </div>
+    `).join('');
+
+    // Compteurs tabs
+    document.getElementById('cnt-fonct').textContent    = t.nb_fonctionnels;
+    document.getElementById('cnt-nonfonct').textContent = t.nb_non_fonctionnels;
+    document.getElementById('cnt-incomplet').textContent = t.nb_incomplets + t.nb_non_saisis;
+
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur taux', 'error'); }
+}
+
+// ── SESSION SAISIE ────────────────────────────────────────────────────────────
+async function chargerSession() {
+  try {
+    const res = await PGA_API.statuts.liste({ periode: periode, par_page: 1 });
+    sessionCourante = res.session || null;
+    afficherSessionBar();
+    majBoutonSaisir();
+  } catch {}
+}
+
+function afficherSessionBar() {
+  const bar = document.getElementById('session-bar');
+  if (!sessionCourante) {
+    bar.style.display = 'flex';
+    bar.innerHTML = `<div style="color:var(--amber);font-size:12px;font-weight:600">⚠ Aucune session de saisie configurée pour cette période.</div>`;
+    return;
+  }
+  const s = sessionCourante;
+  bar.style.display = 'flex';
+
+  // Déterminer la couleur du statut depuis les données calculées (icp_peut_saisir / statut)
+  const statutColors = {
+    saisie_ouverte: ['var(--green)',  'rgba(46,204,122,.1)', 'OUVERT'],
+    saisie_fermee:  ['var(--amber)',  'rgba(240,160,48,.1)',  'FERMÉ'],
+    verrouille:     ['var(--red)',    'rgba(232,82,74,.1)',   'VERROUILLÉ'],
+    a_venir:        ['var(--text3)',  'var(--bg3)',           'À VENIR'],
+  };
+  // Si dérogation active, afficher comme ouvert
+  const statutEffectif = s.derogation_active ? 'saisie_ouverte' : (s.statut || 'a_venir');
+  const [col, bg, lbl] = statutColors[statutEffectif] || ['var(--text3)', 'var(--bg3)', s.statut];
+
+  const derogHtml = s.derogation_active
+    ? `<div class="session-sep"></div>
+       <div class="session-item">
+         <div class="session-lbl">Dérogation</div>
+         <div class="session-val" style="color:var(--green)">Jusqu'au ${s.derogation_expiration || '—'}</div>
+       </div>`
+    : '';
+
+  bar.innerHTML = `
+    <div class="session-item"><div class="session-lbl">Ouverture saisie</div><div class="session-val">${s.ouverture_saisie || '—'}</div></div>
+    <div class="session-sep"></div>
+    <div class="session-item"><div class="session-lbl">Fermeture ICP</div><div class="session-val">${s.fermeture_saisie || '—'}</div></div>
+    <div class="session-sep"></div>
+    <div class="session-item"><div class="session-lbl">Lecture RPS</div><div class="session-val">${s.fermeture_rps || '—'}</div></div>
+    ${derogHtml}
+    <div class="session-statut" style="color:${col};background:${bg};border:1px solid ${col}44">${lbl}</div>
+  `;
+}
+
+function majBoutonSaisir() {
+  // Bouton "Tout marquer vu" pour DRS/admin
+  const btnDir = document.getElementById('btn-marquer-directeur');
+  const user = currentUser;
+  if (btnDir) {
+    const peutMarquer = user && ['drs', 'admin_dsc', 'superviseur_dsc'].includes(user.role);
+    btnDir.style.display = peutMarquer ? 'inline-flex' : 'none';
+  }
+
+  const btn = document.getElementById('btn-saisir');
+  if (!user) { btn.style.display = 'none'; return; }
+
+  const rolesPeutSaisir = ['icp', 'rps', 'admin_dsc', 'superviseur_dsc'];
+  if (!rolesPeutSaisir.includes(user.role)) { btn.style.display = 'none'; return; }
+
+  // Admins et superviseurs peuvent toujours saisir
+  if (user.role === 'admin_dsc' || user.role === 'superviseur_dsc') {
+    btn.style.display = 'inline-flex';
+    btn.disabled = false;
+    btn.title = '';
+    return;
+  }
+
+  // ICP : vérifier la fenêtre
+  if (user.role === 'icp') {
+    if (!sessionCourante) {
+      btn.style.display = 'inline-flex';
+      btn.disabled = true;
+      btn.title = 'Aucune session configurée pour cette période';
+      btn.style.opacity = '0.5';
+      return;
+    }
+    if (!sessionCourante.icp_peut_saisir) {
+      btn.style.display = 'inline-flex';
+      btn.disabled = true;
+      btn.title = sessionCourante.statut === 'verrouille'
+        ? 'Période verrouillée — contactez l\'administrateur DSC'
+        : sessionCourante.statut === 'a_venir'
+          ? `Saisie non encore ouverte (ouverture : ${sessionCourante.ouverture_saisie})`
+          : `Fenêtre ICP fermée depuis le ${sessionCourante.fermeture_saisie}`;
+      btn.style.opacity = '0.5';
+    } else {
+      btn.style.display = 'inline-flex';
+      btn.disabled = false;
+      btn.title = '';
+      btn.style.opacity = '1';
+    }
+    return;
+  }
+
+  // RPS : vérifier la fenêtre RPS
+  if (user.role === 'rps') {
+    if (!sessionCourante) {
+      btn.style.display = 'inline-flex';
+      btn.disabled = true;
+      btn.title = 'Aucune session configurée pour cette période';
+      btn.style.opacity = '0.5';
+      return;
+    }
+    if (!sessionCourante.rps_peut_saisir) {
+      btn.style.display = 'inline-flex';
+      btn.disabled = true;
+      btn.title = `Fenêtre RPS fermée depuis le ${sessionCourante.fermeture_rps}`;
+      btn.style.opacity = '0.5';
+    } else {
+      btn.style.display = 'inline-flex';
+      btn.disabled = false;
+      btn.title = '';
+      btn.style.opacity = '1';
+    }
+  }
+}
+
+// ── TABLE STATUTS ─────────────────────────────────────────────────────────────
+async function chargerStatuts() {
+  const selPeriodes = window.periodeMulti?.getValues() || [];
+  const params = { par_page: 25, page, ...(geoCtrl?.getValues() || {}) };
+  if (selPeriodes.length > 1) params['periodes[]'] = selPeriodes;
+  else params.periode = selPeriodes[0] || periode;
+  if (filtreVal)   params.statut_global = filtreVal;
+  if (filtreValid) params.validation    = filtreValid;
+
+  const tbody = document.getElementById('statuts-tbody');
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">${PGA_UI.spinnerHtml(18)}</td></tr>`;
+
+  try {
+    const res = await PGA_API.statuts.liste(params);
+    // Backend retourne { data: LengthAwarePaginator, periode, session, ... }
+    // LengthAwarePaginator sérialisé contient { current_page, data: [...], total, last_page, ... }
+    const paginator = res.data;
+    const data = paginator?.data || [];
+    const user = currentUser;
+
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><span class="ico">📋</span><p>Aucun statut trouvé pour cette période.</p></td></tr>`;
+      document.getElementById('pagination-statuts').innerHTML = '';
+      return;
+    }
+
+    // Droits par rôle (strictement séparés)
+    const estIcp              = user?.role === 'icp';
+    const peutValiderRps      = ['rps', 'admin_dsc', 'superviseur_dsc'].includes(user?.role); // jamais ICP
+    const peutMarquerDirecteur= ['drs', 'admin_dsc', 'superviseur_dsc'].includes(user?.role);
+    const peutEditer          = ['icp', 'admin_dsc', 'superviseur_dsc'].includes(user?.role); // RPS valide seulement, ne peut pas éditer
+
+    tbody.innerHTML = data.map(s => {
+      const critIcons = ['outils_a_jour','activites_realisees','rma_produit','reunion_participee']
+        .map(k => s[k] === true  ? `<span style="color:var(--green)" title="${k}">✓</span>`
+                 : s[k] === false ? `<span style="color:var(--red)"   title="${k}">✕</span>`
+                 : `<span style="color:var(--text3)">—</span>`).join(' ');
+
+      // Afficher la date de validation RPS ou de lecture Directeur
+      const validationSub = s.valide_rps_le
+        ? `<div class="cell-sub" style="margin-top:3px">${s.valide_par_rps || ''} · ${s.valide_rps_le}</div>`
+        : '';
+
+      return `
+        <tr>
+          <td>
+            <div class="cell-name">${s.nom_complet}</div>
+            <div class="cell-sub">${s.code_asbc}</div>
+          </td>
+          <td>
+            <div style="font-size:12px;color:var(--text)">${s.village || '—'}</div>
+            <div class="cell-sub">${s.formation_sanitaire || '—'}</div>
+          </td>
+          <td>
+            <div style="display:flex;gap:8px;font-size:16px;font-family:'IBM Plex Mono',monospace">${critIcons}</div>
+            <div style="font-size:9px;color:var(--text3);margin-top:4px;letter-spacing:.05em">O · A · R · M</div>
+          </td>
+          <td>${badgeStatutGlobal(s.statut_global)}</td>
+          <td>
+            <div>${badgeValidation(s.statut_validation)}</div>
+            ${validationSub}
+          </td>
+          <td style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;padding-top:8px;padding-bottom:8px" onclick="event.stopPropagation()">
+            ${/* ICP : Éditer visible pour tous les statuts non-verrouillés */
+              estIcp && s.statut_validation !== 'verrouille'
+              ? `<button class="btn-secondary btn-sm" onclick="editerStatut('${s.id}', ${JSON.stringify(s).replace(/"/g,'&quot;')})">Éditer</button>`
+              : /* RPS/admin : Éditer visible uniquement pour les brouillons */
+              !estIcp && peutEditer && s.statut_validation === 'brouillon'
+              ? `<button class="btn-secondary btn-sm" onclick="editerStatut('${s.id}', ${JSON.stringify(s).replace(/"/g,'&quot;')})">Éditer</button>`
+              : ''}
+            ${/* Valider RPS : jamais pour l'ICP, uniquement sur les brouillons */
+              s.statut_validation === 'brouillon' && peutValiderRps
+              ? `<button class="btn-primary btn-sm" onclick="validerRps('${s.id}')">Valider RPS</button>`
+              : ''}
+            ${s.statut_validation === 'valide_rps' && peutMarquerDirecteur
+              ? `<button class="btn-secondary btn-sm" style="color:var(--amber)" onclick="marquerLuDirecteurIndividuel('${s.id}')">Marquer vu</button>`
+              : ''}
+          </td>
+        </tr>`;
+    }).join('');
+
+    // Pagination — Laravel paginator expose directement current_page, last_page, total
+    PGA_UI.renderPagination(
+      document.getElementById('pagination-statuts'),
+      paginator,
+      (p) => { page = p; chargerStatuts(); }
+    );
+
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><span class="ico">⚠️</span><p>${PGA_UI.escapeHtml(err.message)}</p></td></tr>`;
+  }
+}
+
+// ── BADGES ────────────────────────────────────────────────────────────────────
+function badgeStatutGlobal(s) {
+  const m = { fonctionnel: 'badge-green', non_fonctionnel: 'badge-red', incomplet: 'badge-gray' };
+  const l = { fonctionnel: 'Fonctionnel', non_fonctionnel: 'Non fonct.', incomplet: 'Incomplet' };
+  return `<span class="badge ${m[s] || 'badge-gray'}">${l[s] || s}</span>`;
+}
+function badgeValidation(s) {
+  const m = { brouillon: 'badge-gray', valide_rps: 'badge-blue', lu_directeur: 'badge-amber', verrouille: 'badge-green' };
+  const l = { brouillon: 'Brouillon',  valide_rps: 'Validé RPS', lu_directeur: 'Lu Directeur', verrouille: 'Verrouillé' };
+  return `<span class="badge ${m[s] || 'badge-gray'}">${l[s] || s}</span>`;
+}
+
+// ── FILTRES ───────────────────────────────────────────────────────────────────
+function changerFiltreVal(el) {
+  document.querySelectorAll('[data-val]').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  filtreVal = el.dataset.val; page = 1; chargerStatuts();
+}
+function changerFiltreValid(el) {
+  document.querySelectorAll('[data-valid]').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  filtreValid = el.dataset.valid; page = 1; chargerStatuts();
+}
+
+// ── DRAWER SAISIE ─────────────────────────────────────────────────────────────
+function ouvrirSaisie() {
+  asbcSelectionne = null; statutEditId = null;
+  resetCriteres();
+  document.getElementById('etape-recherche').style.display = 'block';
+  document.getElementById('etape-criteres').style.display  = 'none';
+  document.getElementById('btn-retour').style.display      = 'none';
+  document.getElementById('btn-enregistrer').style.display = 'none';
+  document.getElementById('asbc-search').value = '';
+  document.getElementById('asbc-results').innerHTML = '';
+  document.getElementById('drawer-title').textContent = 'Saisir un statut';
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+  setTimeout(() => document.getElementById('asbc-search').focus(), 200);
+}
+
+async function editerStatut(id, data) {
+  statutEditId = id;
+  asbcSelectionne = { id: data.asbc_id, code_asbc: data.code_asbc, nom_complet: data.nom_complet };
+
+  // Préremplir les critères
+  ['outils_a_jour','activites_realisees','rma_produit','reunion_participee'].forEach(k => {
+    criteres[k] = data[k];
+    const card = document.querySelector(`.critere-card[data-key="${k}"]`);
+    if (card) {
+      card.classList.remove('checked', 'unchecked');
+      if (data[k] === true)  card.classList.add('checked');
+      if (data[k] === false) card.classList.add('unchecked');
+    }
+  });
+
+  document.getElementById('commentaire-icp').value = data.commentaire_icp || '';
+  afficherEtapeCriteres(asbcSelectionne);
+  majPreviewStatut();
+  document.getElementById('drawer-title').textContent = 'Modifier le statut';
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+
+function fermerDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+}
+
+function afficherEtapeCriteres(asbc) {
+  document.getElementById('etape-recherche').style.display = 'none';
+  document.getElementById('etape-criteres').style.display  = 'block';
+  document.getElementById('btn-retour').style.display      = 'inline-flex';
+  document.getElementById('btn-enregistrer').style.display = 'inline-flex';
+  document.getElementById('asbc-selectionne-info').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;border-radius:50%;background:rgba(46,204,122,.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--green);flex-shrink:0">
+        ${(asbc.nom_complet || '?')[0]}
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${asbc.nom_complet}</div>
+        <div style="font-size:11px;color:var(--text3)">${asbc.code_asbc} · Période : ${periode}</div>
+      </div>
+    </div>
+  `;
+}
+
+function retourRecherche() {
+  document.getElementById('etape-recherche').style.display = 'block';
+  document.getElementById('etape-criteres').style.display  = 'none';
+  document.getElementById('btn-retour').style.display      = 'none';
+  document.getElementById('btn-enregistrer').style.display = 'none';
+  asbcSelectionne = null;
+}
+
+function resetCriteres() {
+  criteres = { outils_a_jour: null, activites_realisees: null, rma_produit: null, reunion_participee: null };
+  document.querySelectorAll('.critere-card').forEach(c => c.classList.remove('checked', 'unchecked'));
+}
+
+// ── RECHERCHE ASBC ────────────────────────────────────────────────────────────
+const rechercherAsbc = () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(async () => {
+    const terme = document.getElementById('asbc-search').value;
+    if (terme.length < 2) { document.getElementById('asbc-results').innerHTML = ''; return; }
+    const container = document.getElementById('asbc-results');
+    container.innerHTML = `<div style="padding:10px;color:var(--text3);font-size:12px">${PGA_UI.spinnerHtml(14)} Recherche…</div>`;
+    try {
+      const res = await PGA_API.asbc.liste({ recherche: terme, statut: 'actif', par_page: 8 });
+      const data = res.data || [];
+      if (!data.length) { container.innerHTML = `<div style="padding:10px;color:var(--text3);font-size:12px">Aucun résultat.</div>`; return; }
+      container.innerHTML = data.map(a => `
+        <div onclick="selectionnerAsbc(${JSON.stringify(a).replace(/"/g,'&quot;')})"
+          style="padding:10px 12px;border-radius:var(--r);cursor:pointer;transition:background .1s;background:var(--bg3);margin-bottom:3px;display:flex;align-items:center;gap:10px"
+          onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">
+          <div style="width:32px;height:32px;border-radius:50%;background:rgba(46,204,122,.1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--green);flex-shrink:0">${a.nom_complet[0]}</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">${a.nom_complet}</div>
+            <div style="font-size:11px;color:var(--text3)">${a.code_asbc} · ${a.village || '—'} · ${a.formation_sanitaire || '—'}</div>
+          </div>
+        </div>
+      `).join('');
+    } catch {}
+  }, 300);
+};
+
+function selectionnerAsbc(asbc) {
+  asbcSelectionne = asbc;
+  resetCriteres();
+  document.getElementById('commentaire-icp').value = '';
+  afficherEtapeCriteres(asbc);
+  majPreviewStatut();
+}
+
+// ── CRITÈRES ──────────────────────────────────────────────────────────────────
+function toggleCritere(card) {
+  const key = card.dataset.key;
+  const current = criteres[key];
+  // null → true → false → null
+  if (current === null || current === undefined) {
+    criteres[key] = true;
+    card.classList.remove('unchecked'); card.classList.add('checked');
+  } else if (current === true) {
+    criteres[key] = false;
+    card.classList.remove('checked'); card.classList.add('unchecked');
+  } else {
+    criteres[key] = null;
+    card.classList.remove('checked', 'unchecked');
+  }
+  majPreviewStatut();
+}
+
+function majPreviewStatut() {
+  const vals = Object.values(criteres);
+  const preview = document.getElementById('statut-preview');
+  if (!preview) return;
+  if (vals.some(v => v === null)) {
+    preview.innerHTML = `<span style="color:var(--text3)">Statut calculé : <strong style="color:var(--text3)">Incomplet</strong> — remplissez les 4 critères</span>`;
+    preview.style.borderColor = 'var(--border)';
+  } else if (vals.every(v => v === true)) {
+    preview.innerHTML = `<span style="color:var(--green)">✓ Statut calculé : <strong>Fonctionnel</strong></span>`;
+    preview.style.borderColor = 'rgba(46,204,122,.3)';
+  } else {
+    preview.innerHTML = `<span style="color:var(--red)">✕ Statut calculé : <strong>Non fonctionnel</strong> (${vals.filter(v => v === false).length} critère(s) non rempli(s))</span>`;
+    preview.style.borderColor = 'rgba(232,82,74,.3)';
+  }
+}
+
+// ── ENREGISTREMENT ────────────────────────────────────────────────────────────
+async function enregistrerStatut() {
+  if (!asbcSelectionne) { PGA_UI.toast('Sélectionnez un ASBC', 'warning'); return; }
+  const btn = document.getElementById('btn-enregistrer');
+  btn.disabled = true; btn.textContent = 'Enregistrement…';
+
+  const payload = {
+    asbc_id: asbcSelectionne.id,
+    periode_mois: periode,
+    ...criteres,
+    commentaire_icp: document.getElementById('commentaire-icp').value,
+  };
+
+  try {
+    if (statutEditId) {
+      await PGA_API.statuts.modifier(statutEditId, payload);
+      PGA_UI.toast('Statut mis à jour.', 'success');
+    } else {
+      await PGA_API.statuts.saisir(payload);
+      PGA_UI.toast('Statut enregistré.', 'success');
+    }
+    fermerDrawer();
+    await chargerPage();
+  } catch (err) {
+    if (err.type === 'validation') PGA_UI.toast(err.message, 'warning');
+    else PGA_UI.toast(err.message || 'Erreur', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Enregistrer le statut';
+  }
+}
+
+// ── VALIDATION RPS ────────────────────────────────────────────────────────────
+async function validerRps(id) {
+  const ok = await PGA_UI.confirmer(
+    'Validation RPS',
+    'Confirmer la validation de ce statut de fonctionnement ?',
+    { labelOk: 'Valider' }
+  );
+  if (!ok) return;
+  try {
+    await PGA_API.statuts.validerRps(id);
+    PGA_UI.toast('Statut validé par le RPS.', 'success');
+    chargerStatuts(); chargerTaux();
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur', 'error'); }
+}
+
+// ── LECTURE DIRECTEUR (bulk, bouton en-tête) ──────────────────────────────────
+async function marquerTousLuDirecteur() {
+  const ok = await PGA_UI.confirmer(
+    'Tout marquer vu',
+    `Marquer tous les statuts validés RPS de ${periode} comme vus par le Directeur ?`,
+    { labelOk: 'Confirmer' }
+  );
+  if (!ok) return;
+  try {
+    const res = await PGA_API.statuts.marquerLuDirecteur({ periode_mois: periode });
+    PGA_UI.toast(res.message || 'Statuts marqués vus.', 'success');
+    chargerStatuts(); chargerTaux();
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur', 'error'); }
+}
+
+// ── LECTURE DIRECTEUR ─────────────────────────────────────────────────────────
+async function marquerLuDirecteurIndividuel(id) {
+  // Le backend n'a pas d'endpoint individuel → appel bulk filtré par zone
+  // Ici on utilise l'endpoint bulk pour marquer TOUS les valide_rps comme lus
+  const ok = await PGA_UI.confirmer(
+    'Marquer comme vu',
+    `Marquer tous les statuts validés RPS de la période ${PGA_UI.fmt.periode ? PGA_UI.fmt.periode(periode) : periode} comme vus par le Directeur ?`,
+    { labelOk: 'Confirmer' }
+  );
+  if (!ok) return;
+  try {
+    const res = await PGA_API.statuts.marquerLuDirecteur({ periode_mois: periode });
+    PGA_UI.toast(res.message || 'Statuts marqués vus.', 'success');
+    chargerStatuts(); chargerTaux();
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur', 'error'); }
+}
+</script>
+</body>
+</html>

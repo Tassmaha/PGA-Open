@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>PGA — Aide & Documentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<style>
+:root{--bg:#0D1117;--bg2:#161B24;--bg3:#1E2530;--bg4:#252D3A;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--text:#E8EDF5;--text2:#8A97AC;--text3:#5A6578;--green:#2ECC7A;--amber:#F0A030;--red:#E8524A;--blue:#5B9CF6;--r:8px;--r-lg:12px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+.sidebar{width:220px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:50;}
+.logo-area{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.logo-badge{display:flex;align-items:center;gap:10px;}
+.logo-armoirie{width:34px;height:34px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--text);letter-spacing:-.02em;}
+.logo-sub{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+.nav-section{padding:14px 12px 8px;flex:1;overflow-y:auto;}
+.nav-group{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;padding:0 8px;margin:12px 0 5px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);cursor:pointer;transition:background .15s;margin-bottom:2px;color:var(--text2);text-decoration:none;}
+.nav-item:hover{background:var(--bg3);}
+.nav-item.active{background:rgba(46,204,122,.08);color:var(--green);}
+.nav-item svg{width:16px;height:16px;fill:currentColor;flex-shrink:0;opacity:.7;}
+.nav-item.active svg{opacity:1;}
+.nav-item span{font-size:13px;font-weight:500;}
+.sidebar-footer{padding:14px 12px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r);}
+.user-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#D4724A,#F0A030);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);}
+.user-role{font-size:10px;color:var(--text3);margin-top:1px;}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;}
+.topbar{height:56px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:40;}
+.page-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.02em;}
+.content{flex:1;padding:24px 28px;overflow-y:auto;max-width:900px;}
+
+/* Aide sections */
+.help-header{margin-bottom:28px;}
+.help-header h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.help-header p{font-size:14px;color:var(--text2);line-height:1.6;}
+.help-actions{display:flex;gap:10px;margin-top:16px;}
+.btn-print{padding:10px 20px;background:var(--green);border:none;border-radius:var(--r);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#0D1117;cursor:pointer;}
+.btn-print:hover{opacity:.9;}
+
+/* Accordion */
+.help-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:12px;overflow:hidden;}
+.help-section-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer;transition:background .15s;}
+.help-section-head:hover{background:var(--bg3);}
+.help-section-head h2{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:10px;}
+.help-section-head .icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.help-section-head .chevron{width:20px;height:20px;fill:var(--text3);transition:transform .2s;flex-shrink:0;}
+.help-section.open .chevron{transform:rotate(180deg);}
+.help-section-body{display:none;padding:0 20px 20px;font-size:13px;color:var(--text2);line-height:1.7;}
+.help-section.open .help-section-body{display:block;}
+.help-section-body h3{font-size:13px;font-weight:700;color:var(--text);margin:16px 0 6px;}
+.help-section-body h3:first-child{margin-top:0;}
+.help-section-body ul{padding-left:20px;margin:6px 0;}
+.help-section-body li{margin-bottom:4px;}
+.help-section-body .role-tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;}
+.role-admin{background:rgba(232,82,74,.15);color:#E8524A;}
+.role-rps{background:rgba(46,204,122,.15);color:#2ECC7A;}
+.role-icp{background:rgba(46,204,122,.15);color:#2ECC7A;}
+.role-drs{background:rgba(91,156,246,.15);color:#5B9CF6;}
+.role-all{background:rgba(138,151,172,.15);color:#8A97AC;}
+.step{display:flex;gap:12px;margin:8px 0;align-items:flex-start;}
+.step-num{width:24px;height:24px;border-radius:50%;background:var(--green);color:#0D1117;font-family:'Syne',sans-serif;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-text{flex:1;}
+.param-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px;}
+.param-table th{text-align:left;padding:8px 12px;background:var(--bg3);color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid var(--border);}
+.param-table td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--text2);}
+.param-table td:first-child{font-family:'IBM Plex Mono',monospace;color:var(--green);font-size:11px;}
+
+/* Print styles */
+@media print {
+  body{background:#fff!important;color:#111!important;display:block!important;}
+  .sidebar,.topbar,.help-actions,.btn-print,.nav-item,.chevron{display:none!important;}
+  .main{margin-left:0!important;}
+  .content{max-width:100%!important;padding:0!important;}
+  .help-header h1{color:#111!important;font-size:22pt!important;}
+  .help-header p{color:#444!important;}
+  .help-section{border:1px solid #ddd!important;background:#fff!important;break-inside:avoid;margin-bottom:14px!important;}
+  .help-section-body{display:block!important;color:#333!important;}
+  .help-section-head h2{color:#111!important;}
+  .help-section-head .icon{display:none!important;}
+  .param-table th{background:#f0f0f0!important;color:#333!important;}
+  .param-table td{color:#333!important;}
+  .param-table td:first-child{color:#0a6c3a!important;}
+  .role-tag{border:1px solid #999!important;color:#333!important;background:#f0f0f0!important;}
+  .step-num{background:#111!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  @page{margin:1.5cm;size:A4;}
+}
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar"></aside>
+<main class="main">
+  <header class="topbar" id="topbar"></header>
+  <div class="content">
+
+    <div class="help-header">
+      <h1>Guide d'utilisation PGA</h1>
+      <p>Plateforme de Gestion des Agents de Sant&eacute; Communautaire &mdash; Minist&egrave;re de la Sant&eacute;, Burkina Faso</p>
+      <div class="help-actions">
+        <button class="btn-print" onclick="window.print()">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:#0D1117;vertical-align:-2px;margin-right:6px"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+          Imprimer / Exporter en PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 1 : TABLEAU DE BORD -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section open" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(91,156,246,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#5B9CF6"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>
+          Tableau de bord
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <span class="role-tag role-all">Tous les r&ocirc;les</span>
+        <h3>Description</h3>
+        <p>Le tableau de bord affiche les indicateurs cl&eacute;s de performance (KPI) pour la p&eacute;riode s&eacute;lectionn&eacute;e. Il synth&eacute;tise en un coup d'&oelig;il l'&eacute;tat du programme ASBC dans votre zone g&eacute;ographique.</p>
+        <h3>Indicateurs affich&eacute;s</h3>
+        <ul>
+          <li><strong>ASBC Actifs</strong> &mdash; Nombre d'ASBC actuellement en activit&eacute;</li>
+          <li><strong>Taux de fonctionnalit&eacute;</strong> &mdash; Pourcentage d'ASBC fonctionnels (4 crit&egrave;res remplis)</li>
+          <li><strong>Couverture villages</strong> &mdash; Proportion de villages disposant d'au moins un ASBC actif</li>
+          <li><strong>CNIB &agrave; surveiller</strong> &mdash; Nombre d'ASBC dont la CNIB expire dans les 90 jours</li>
+          <li><strong>&Eacute;volution 12 mois</strong> &mdash; Graphique de tendance fonctionnalit&eacute; et paiements</li>
+        </ul>
+        <h3>Utilisation</h3>
+        <div class="step"><div class="step-num">1</div><div class="step-text">S&eacute;lectionnez la p&eacute;riode souhait&eacute;e dans le menu d&eacute;roulant en haut de page.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Les donn&eacute;es se mettent &agrave; jour automatiquement.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Cliquez sur &laquo; Rapports &raquo; pour acc&eacute;der aux d&eacute;tails.</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 2 : GESTION DES ASBC -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(46,204,122,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#2ECC7A"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></span>
+          Gestion des ASBC
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <span class="role-tag role-icp">ICP</span> <span class="role-tag role-rps">RPS</span> <span class="role-tag role-admin">Admin DSC</span>
+        <h3>Cr&eacute;er un ASBC</h3>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Cliquez sur <strong>&laquo; Nouvel ASBC &raquo;</strong> en haut &agrave; droite.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Remplissez le formulaire : nom, pr&eacute;nom, date de naissance (18-65 ans), sexe, CNIB, t&eacute;l&eacute;phone (8 chiffres), village d'affectation.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Validez. Le statut passe en <strong>&laquo; En attente de validation &raquo;</strong>.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Un administrateur DSC recevra une notification pour valider ou rejeter l'enregistrement.</div></div>
+
+        <h3>Workflow de validation</h3>
+        <ul>
+          <li><strong>En attente</strong> &rarr; L'administrateur DSC valide &rarr; <strong>Actif</strong></li>
+          <li><strong>En attente</strong> &rarr; L'administrateur DSC rejette &rarr; <strong>Rejet&eacute;</strong></li>
+          <li>Un ASBC actif peut &ecirc;tre <strong>d&eacute;sactiv&eacute;</strong> (avec motif obligatoire)</li>
+          <li>Un ASBC inactif ou rejet&eacute; peut &ecirc;tre <strong>r&eacute;activ&eacute;</strong> par un admin DSC</li>
+        </ul>
+
+        <h3>Motifs de d&eacute;sactivation</h3>
+        <ul>
+          <li>Abandon de poste</li>
+          <li>D&eacute;c&egrave;s</li>
+          <li>D&eacute;m&eacute;nagement</li>
+          <li>Non-fonctionnalit&eacute; prolong&eacute;e</li>
+          <li>Retraite</li>
+          <li>Autre (pr&eacute;ciser)</li>
+        </ul>
+
+        <h3>R&egrave;gles de validation</h3>
+        <table class="param-table">
+          <tr><th>Champ</th><th>R&egrave;gle</th></tr>
+          <tr><td>T&eacute;l&eacute;phone</td><td>8 chiffres exactement, unique dans le syst&egrave;me</td></tr>
+          <tr><td>CNIB</td><td>9 &agrave; 11 caract&egrave;res, unique, date d'expiration future</td></tr>
+          <tr><td>&Acirc;ge</td><td>Entre 18 et 65 ans au moment de l'enregistrement</td></tr>
+          <tr><td>Village</td><td>Doit exister dans le r&eacute;f&eacute;rentiel g&eacute;ographique</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 3 : STATUTS DE FONCTIONNEMENT -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(46,204,122,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#2ECC7A"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></span>
+          Statuts de fonctionnement
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <span class="role-tag role-icp">ICP</span> <span class="role-tag role-rps">RPS</span> <span class="role-tag role-admin">Admin DSC</span>
+
+        <h3>Les 4 crit&egrave;res de fonctionnalit&eacute;</h3>
+        <p>Chaque mois, les ICP renseignent pour chaque ASBC actif :</p>
+        <ul>
+          <li><strong>Outils &agrave; jour</strong> &mdash; Les outils de travail sont-ils complets et &agrave; jour ?</li>
+          <li><strong>Activit&eacute;s r&eacute;alis&eacute;es</strong> &mdash; Les activit&eacute;s communautaires ont-elles &eacute;t&eacute; r&eacute;alis&eacute;es ?</li>
+          <li><strong>RMA produit</strong> &mdash; Le rapport mensuel d'activit&eacute; a-t-il &eacute;t&eacute; produit ?</li>
+          <li><strong>R&eacute;union particip&eacute;e</strong> &mdash; L'ASBC a-t-il particip&eacute; &agrave; la r&eacute;union mensuelle ?</li>
+        </ul>
+
+        <h3>Calcul du statut</h3>
+        <ul>
+          <li><strong style="color:var(--green)">Fonctionnel</strong> &mdash; 4 crit&egrave;res &agrave; OUI</li>
+          <li><strong style="color:var(--red)">Non fonctionnel</strong> &mdash; Au moins 1 crit&egrave;re &agrave; NON</li>
+          <li><strong style="color:var(--amber)">Incomplet</strong> &mdash; Au moins 1 crit&egrave;re non renseign&eacute;</li>
+        </ul>
+
+        <h3>Fen&ecirc;tres de saisie</h3>
+        <table class="param-table">
+          <tr><th>&Eacute;tape</th><th>P&eacute;riode</th><th>R&ocirc;le</th></tr>
+          <tr><td>Ouverture saisie</td><td>26 du mois M-1</td><td>ICP</td></tr>
+          <tr><td>Fermeture ICP</td><td>5 du mois M+1</td><td>ICP bloqu&eacute;</td></tr>
+          <tr><td>Fermeture RPS</td><td>10 du mois M+1</td><td>RPS bloqu&eacute;</td></tr>
+          <tr><td>Verrouillage</td><td>15 du mois M+1</td><td>Donn&eacute;es fig&eacute;es</td></tr>
+        </table>
+
+        <h3>Workflow de validation</h3>
+        <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Brouillon</strong> &mdash; L'ICP saisit les crit&egrave;res</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Valid&eacute; RPS</strong> &mdash; Le RPS v&eacute;rifie et valide</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Lu Directeur</strong> &mdash; Le DRS consulte</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Verrouill&eacute;</strong> &mdash; Donn&eacute;es d&eacute;finitivement fig&eacute;es</div></div>
+        <p style="margin-top:10px;font-size:12px;color:var(--amber)">Une d&eacute;rogation peut &ecirc;tre accord&eacute;e par un admin DSC pour prolonger la fen&ecirc;tre de saisie.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 4 : PAIEMENTS ORANGE MONEY -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(240,160,48,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#F0A030"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg></span>
+          Paiements Orange Money
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <span class="role-tag role-admin">Admin DSC</span> <span class="role-tag role-admin">Superviseur DSC</span>
+
+        <h3>Importer un fichier de paiement</h3>
+        <div class="step"><div class="step-num">1</div><div class="step-text">S&eacute;lectionnez la p&eacute;riode de paiement dans le menu d&eacute;roulant.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Glissez-d&eacute;posez (ou cliquez) le fichier Orange Money (CSV, XLSX ou XLS, max 10 Mo).</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Cliquez <strong>&laquo; Importer le fichier &raquo;</strong>. Le syst&egrave;me rapproche automatiquement les num&eacute;ros de t&eacute;l&eacute;phone.</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Consultez les r&eacute;sultats : r&eacute;ussis, &eacute;checs, rembours&eacute;s, introuvables.</div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-text">Cl&ocirc;turez l'import une fois les donn&eacute;es valid&eacute;es (irr&eacute;versible).</div></div>
+
+        <h3>Colonnes requises dans le fichier</h3>
+        <table class="param-table">
+          <tr><th>Colonne</th><th>Noms accept&eacute;s</th></tr>
+          <tr><td>T&eacute;l&eacute;phone</td><td>Mobile Number*, telephone, msisdn, numero, phone</td></tr>
+          <tr><td>Montant</td><td>Amount*, amount, montant, sum</td></tr>
+          <tr><td>Statut</td><td>ServiceRequestStatus, statut_orange, status</td></tr>
+        </table>
+
+        <h3>Statuts de paiement</h3>
+        <ul>
+          <li><strong style="color:var(--green)">R&eacute;ussi</strong> &mdash; SUCCEEDED / SUCCESS dans le fichier</li>
+          <li><strong style="color:var(--red)">&Eacute;chec</strong> &mdash; Tout autre statut</li>
+          <li><strong style="color:var(--amber)">Rembours&eacute;</strong> &mdash; REFUNDED</li>
+          <li><strong style="color:var(--text3)">Introuvable</strong> &mdash; Num&eacute;ro non associ&eacute; &agrave; un ASBC</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 5 : RAPPORTS & EXPORTS -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(91,156,246,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#5B9CF6"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-5h2v5zm4 0h-2V7h2v10zm4 0h-2v-3h2v3z"/></svg></span>
+          Rapports & Exports
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <span class="role-tag role-all">Tous les r&ocirc;les</span>
+
+        <h3>Rapports disponibles</h3>
+        <ul>
+          <li><strong>Liste ASBC actifs</strong> &mdash; Tous les ASBC en activit&eacute; avec localisation compl&egrave;te</li>
+          <li><strong>ASBC inactifs</strong> &mdash; Historique des d&eacute;sactivations avec motifs</li>
+          <li><strong>ASBC fonctionnels</strong> &mdash; Liste filtr&eacute;e des ASBC fonctionnels pour la p&eacute;riode</li>
+          <li><strong>Fonctionnalit&eacute;</strong> &mdash; Taux de fonctionnalit&eacute; et de promptitude</li>
+          <li><strong>Paiements</strong> &mdash; Taux de succ&egrave;s des paiements Orange Money</li>
+          <li><strong>Suivi CNIB</strong> &mdash; CNIB expir&eacute;es et en voie d'expiration</li>
+        </ul>
+
+        <h3>Exporter des donn&eacute;es</h3>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Allez dans Rapports &gt; s&eacute;lectionnez l'onglet souhait&eacute;.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Appliquez vos filtres (p&eacute;riode, r&eacute;gion, district, formation).</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Cliquez <strong>&laquo; Exporter &raquo;</strong>. Le fichier se t&eacute;l&eacute;charge automatiquement.</div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 6 : CARTOGRAPHIE -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(91,156,246,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#5B9CF6"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg></span>
+          Cartographie
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <span class="role-tag role-all">Tous les r&ocirc;les</span>
+        <p>La carte choropl&egrave;the affiche les statistiques par province pour la p&eacute;riode s&eacute;lectionn&eacute;e. Les couleurs indiquent le taux de fonctionnalit&eacute; :</p>
+        <ul>
+          <li><strong style="color:#2ECC7A">Vert</strong> &mdash; Taux &ge; 70%</li>
+          <li><strong style="color:#F0A030">Orange</strong> &mdash; Taux entre 40% et 70%</li>
+          <li><strong style="color:#E8524A">Rouge</strong> &mdash; Taux &lt; 40%</li>
+        </ul>
+        <p>Survolez une province pour voir le d&eacute;tail (ASBC actifs, fonctionnels, couverture villages).</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 7 : ADMINISTRATION -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(232,82,74,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#E8524A"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></span>
+          Administration
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <span class="role-tag role-admin">Admin DSC</span> <span class="role-tag role-admin">Superviseur DSC</span>
+
+        <h3>Gestion des utilisateurs</h3>
+        <ul>
+          <li><strong>Cr&eacute;er</strong> &mdash; Un mot de passe temporaire est g&eacute;n&eacute;r&eacute; et envoy&eacute; par email</li>
+          <li><strong>Modifier</strong> &mdash; Changer le r&ocirc;le, la zone d'affectation, le statut</li>
+          <li><strong>R&eacute;init. MDP</strong> &mdash; G&eacute;n&egrave;re un nouveau mot de passe envoy&eacute; par email</li>
+          <li><strong>D&eacute;sactiver</strong> &mdash; Bloque l'acc&egrave;s sans supprimer le compte</li>
+          <li><strong>Supprimer</strong> &mdash; Suppression d&eacute;finitive (Admin DSC uniquement)</li>
+        </ul>
+
+        <h3>R&ocirc;les et permissions</h3>
+        <table class="param-table">
+          <tr><th>R&ocirc;le</th><th>Zone</th><th>Permissions principales</th></tr>
+          <tr><td>admin_dsc</td><td>National</td><td>Acc&egrave;s complet, validation ASBC, import paiements, gestion utilisateurs</td></tr>
+          <tr><td>superviseur_dsc</td><td>National</td><td>Idem admin sauf suppression d&eacute;finitive</td></tr>
+          <tr><td>drs</td><td>R&eacute;gion</td><td>Consultation et lecture des donn&eacute;es de sa r&eacute;gion</td></tr>
+          <tr><td>rps</td><td>District</td><td>Validation des statuts, consultation district</td></tr>
+          <tr><td>icp</td><td>Formation sanitaire</td><td>Saisie des ASBC et statuts de fonctionnalit&eacute;</td></tr>
+          <tr><td>ptf</td><td>National</td><td>Consultation seule (partenaire technique)</td></tr>
+        </table>
+
+        <h3>Sessions de saisie</h3>
+        <p>Les sessions d&eacute;finissent les fen&ecirc;tres temporelles pendant lesquelles la saisie est autoris&eacute;e. Cr&eacute;ez une session par p&eacute;riode mensuelle avec les dates d'ouverture, fermeture ICP, fermeture RPS et verrouillage.</p>
+
+        <h3>Journal d'audit</h3>
+        <p>Toutes les actions sont trac&eacute;es : cr&eacute;ation, modification, validation, suppression, connexion, export. Consultez l'onglet &laquo; Journal d'audit &raquo; pour un historique complet.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 8 : CHANGER SON MOT DE PASSE -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(91,156,246,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#5B9CF6"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></span>
+          S&eacute;curit&eacute; & Mot de passe
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <span class="role-tag role-all">Tous les r&ocirc;les</span>
+        <h3>Changer son mot de passe</h3>
+        <div class="step"><div class="step-num">1</div><div class="step-text">Cliquez sur l'ic&ocirc;ne cadenas <strong style="color:var(--blue)">bleu</strong> dans le coin inf&eacute;rieur gauche de la sidebar.</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Saisissez votre mot de passe actuel.</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Saisissez le nouveau mot de passe (min. 8 caract&egrave;res, 1 majuscule, 1 minuscule, 1 chiffre).</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Confirmez. Vous serez d&eacute;connect&eacute; et devrez vous reconnecter.</div></div>
+        <p style="margin-top:10px;font-size:12px;color:var(--amber)">Changez votre mot de passe temporaire d&egrave;s votre premi&egrave;re connexion.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SECTION 9 : FAQ -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="help-section" data-section>
+      <div class="help-section-head" onclick="toggleSection(this)">
+        <h2>
+          <span class="icon" style="background:rgba(138,151,172,.15)"><svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#8A97AC"><path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg></span>
+          Questions fr&eacute;quentes
+        </h2>
+        <svg class="chevron" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+      </div>
+      <div class="help-section-body">
+        <h3>Je ne vois pas tous les ASBC, pourquoi ?</h3>
+        <p>L'affichage est filtr&eacute; par votre zone g&eacute;ographique. Un ICP ne voit que les ASBC de sa formation sanitaire. Un RPS voit ceux de son district. Seuls les admin DSC voient l'ensemble du pays.</p>
+
+        <h3>La saisie des statuts est bloqu&eacute;e, que faire ?</h3>
+        <p>La fen&ecirc;tre de saisie est probablement ferm&eacute;e. Contactez votre admin DSC pour demander une d&eacute;rogation qui prolongera la fen&ecirc;tre de saisie.</p>
+
+        <h3>L'import paiement indique des ASBC &laquo; introuvables &raquo;</h3>
+        <p>Le num&eacute;ro Orange Money du fichier ne correspond &agrave; aucun ASBC dans le syst&egrave;me. V&eacute;rifiez que le num&eacute;ro de t&eacute;l&eacute;phone est correctement enregistr&eacute; dans la fiche ASBC.</p>
+
+        <h3>Comment exporter les donn&eacute;es ?</h3>
+        <p>Allez dans Rapports &amp; Export, s&eacute;lectionnez le type de rapport et cliquez &laquo; Exporter &raquo;. Les donn&eacute;es seront t&eacute;l&eacute;charg&eacute;es au format JSON.</p>
+
+        <h3>J'ai oubli&eacute; mon mot de passe</h3>
+        <p>Contactez votre administrateur DSC. Il pourra r&eacute;initialiser votre mot de passe depuis la page Administration &gt; Utilisateurs &gt; R&eacute;init. MDP.</p>
+
+        <h3>Probl&egrave;me technique ?</h3>
+        <p>Contactez le support DSC : <strong>support@dsc.gov.bf</strong></p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await PGA_LAYOUT.init('aide', 'Aide & Documentation');
+  if (!user) return;
+});
+
+function toggleSection(head) {
+  const section = head.closest('.help-section');
+  section.classList.toggle('open');
+}
+</script>
+</body>
+</html>

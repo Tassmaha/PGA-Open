@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Détail ASBC</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/pga-shared.css">
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<style>
+/* ── HERO ASBC ── */
+.hero {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 24px 28px; margin-bottom: 20px; display: flex; align-items: flex-start; gap: 20px;
+  animation: rise .35s ease both;
+}
+.hero-avatar {
+  width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800;
+  letter-spacing: -.04em; border: 2px solid rgba(255,255,255,.08);
+}
+.hero-body { flex: 1; }
+.hero-nom   { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.03em; margin-bottom: 4px; }
+.hero-code  { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text3); margin-bottom: 10px; }
+.hero-meta  { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hero-chip  {
+  display: flex; align-items: center; gap: 5px; padding: 4px 10px;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 20px;
+  font-size: 11px; color: var(--text2);
+}
+.hero-chip svg { width: 12px; height: 12px; fill: var(--text3); }
+.hero-actions { display: flex; gap: 8px; flex-shrink: 0; align-self: flex-start; }
+
+/* ── INFOS GRID ── */
+.infos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+.info-block {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 16px 18px; animation: rise .35s ease both;
+}
+.ib-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.ib-title svg { width: 14px; height: 14px; fill: var(--text3); }
+.ib-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.ib-row:last-child { border-bottom: none; }
+.ib-label { font-size: 11px; color: var(--text3); }
+.ib-val   { font-size: 12px; font-weight: 600; color: var(--text); text-align: right; }
+.ib-mono  { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); }
+
+/* ── HISTORIQUE ── */
+.hist-item {
+  display: flex; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.hist-item:last-child { border-bottom: none; }
+.hist-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 4px;
+}
+.hist-body { flex: 1; }
+.hist-periode { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text2); font-weight: 500; }
+.hist-detail  { font-size: 11px; color: var(--text3); margin-top: 3px; line-height: 1.4; }
+
+/* ── CRITÈRES MINI ── */
+.crit-mini {
+  display: inline-flex; gap: 3px;
+}
+.crit-dot {
+  width: 8px; height: 8px; border-radius: 2px;
+}
+
+/* ── CNIB ALERTE BANNER ── */
+.cnib-banner {
+  border-radius: var(--r-lg); padding: 12px 16px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px; font-size: 13px;
+}
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar"></aside>
+<main class="main">
+  <header class="topbar" id="topbar"></header>
+  <div class="content">
+
+    <!-- Breadcrumb -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;font-size:12px;color:var(--text3)">
+      <a href="asbc.html" style="color:var(--text3);text-decoration:none;cursor:pointer;transition:color .15s" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text3)'">← ASBC</a>
+      <span>/</span>
+      <span id="breadcrumb-nom" style="color:var(--text2)">Chargement…</span>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loading-state" style="text-align:center;padding:60px 20px">
+      <div style="width:40px;height:40px;border:2px solid rgba(46,204,122,.2);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px"></div>
+      <p style="color:var(--text3);font-size:13px">Chargement du profil ASBC…</p>
+    </div>
+
+    <!-- Contenu ASBC (caché pendant le chargement) -->
+    <div id="asbc-content" style="display:none">
+
+      <!-- CNIB Alert banner -->
+      <div id="cnib-banner"></div>
+
+      <!-- Hero -->
+      <div class="hero" id="hero"></div>
+
+      <!-- Infos grid -->
+      <div class="infos-grid" id="infos-grid"></div>
+
+      <!-- Tabs historique -->
+      <div class="tabs" style="margin-bottom:14px">
+        <div class="tab active" data-htab="statuts"   onclick="changerHTab(this)">Statuts de fonctionnement</div>
+        <div class="tab"        data-htab="paiements" onclick="changerHTab(this)">Paiements</div>
+        <div class="tab"        data-htab="audit"     onclick="changerHTab(this)">Journal des modifications</div>
+      </div>
+
+      <!-- Historique statuts -->
+      <div id="htab-statuts">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Historique — Statuts de fonctionnement (12 derniers mois)</div></div>
+          <table class="data-table">
+            <thead><tr>
+              <th>Période</th><th>Critères (O·A·R·M)</th><th>Statut global</th><th>Validation</th><th>Commentaire</th>
+            </tr></thead>
+            <tbody id="statuts-hist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Historique paiements -->
+      <div id="htab-paiements" style="display:none">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Historique — Paiements</div></div>
+          <table class="data-table">
+            <thead><tr>
+              <th>Période</th><th>Montant</th><th>Téléphone utilisé</th><th>Statut</th><th>Confirmé</th>
+            </tr></thead>
+            <tbody id="pay-hist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Audit / modifications -->
+      <div id="htab-audit" style="display:none">
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Journal des modifications de cet ASBC</div></div>
+          <div class="panel-body" id="audit-asbc-feed" style="padding:8px 16px"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+let asbcData = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await PGA_LAYOUT.init('asbc', 'Détail ASBC');
+  if (!user) return;
+
+  // Récupérer l'ID depuis l'URL
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  if (!id) { window.location.href = 'asbc.html'; return; }
+
+  await chargerAsbc(id);
+});
+
+async function chargerAsbc(id) {
+  try {
+    const res = await PGA_API.asbc.detail(id);
+    asbcData = res.asbc || res;
+
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('asbc-content').style.display  = 'block';
+    document.title = `PGA — ${asbcData.nom_complet || asbcData.nom}`;
+    document.getElementById('breadcrumb-nom').textContent = asbcData.nom_complet || asbcData.nom;
+
+    renderBanner(asbcData);
+    renderHero(asbcData, res);
+    renderInfos(asbcData);
+    renderStatutsHist(res.historique_statuts || []);
+    renderPaiementsHist(res.historique_paiements || []);
+
+  } catch (err) {
+    document.getElementById('loading-state').innerHTML = `
+      <div class="empty-state">
+        <span class="ico">⚠️</span>
+        <p>${PGA_UI.escapeHtml(err.message || 'ASBC introuvable.')}</p>
+        <button class="btn-secondary" style="margin-top:14px" onclick="window.location.href='asbc.html'">← Retour à la liste</button>
+      </div>`;
+  }
+}
+
+// ── BANNER CNIB ───────────────────────────────────────────────────────────────
+function renderBanner(a) {
+  const banner = document.getElementById('cnib-banner');
+  if (a.cnib_statut === 'expire') {
+    banner.innerHTML = `<div class="cnib-banner" style="background:rgba(232,82,74,.08);border:1px solid rgba(232,82,74,.2);color:var(--red)"><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--red);flex-shrink:0"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg><div><strong>CNIB expiré</strong> — La CNIB de cet ASBC est expirée depuis le ${PGA_UI.escapeHtml(a.cnib_date_expiration)}. Risque de blocage de paiement.</div></div>`;
+  } else if (a.cnib_statut === 'expiration_proche') {
+    banner.innerHTML = `<div class="cnib-banner" style="background:rgba(240,160,48,.08);border:1px solid rgba(240,160,48,.2);color:var(--amber)"><svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:var(--amber);flex-shrink:0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg><div><strong>CNIB expire dans ${a.cnib_jours_restants} jours</strong> — Expiration le ${PGA_UI.escapeHtml(a.cnib_date_expiration)}. Prévoir le renouvellement.</div></div>`;
+  }
+}
+
+// ── HERO ──────────────────────────────────────────────────────────────────────
+function renderHero(a, res) {
+  const sexeColor = a.sexe === 'F' ? '#C05AB5' : '#2ECC7A';
+  const user = PGA_API.user.get();
+  const isDsc       = ['admin_dsc','superviseur_dsc'].includes(user?.role);
+  const peutModifier = ['admin_dsc','superviseur_dsc','rps','icp'].includes(user?.role);
+  const peutValider  = isDsc && a.statut === 'en_attente_validation';
+  const peutRejeter  = isDsc && a.statut === 'en_attente_validation';
+  const peutDesact   = ['admin_dsc','superviseur_dsc','rps','icp'].includes(user?.role) && a.statut === 'actif';
+  const peutReactiv  = isDsc && ['inactif', 'rejete'].includes(a.statut);
+
+  document.getElementById('hero').innerHTML = `
+    <div class="hero-avatar" style="background:${sexeColor}22;color:${sexeColor}">
+      ${(a.nom_complet || a.nom)[0]}
+    </div>
+    <div class="hero-body">
+      <div class="hero-nom">${PGA_UI.escapeHtml(a.nom_complet || (a.nom + ' ' + a.prenom))}</div>
+      <div class="hero-code">${a.code_asbc} · ${a.sexe === 'F' ? '♀ Féminin' : '♂ Masculin'} · ${a.age || '—'} ans</div>
+      <div class="hero-meta">
+        ${PGA_UI.fmt.statutBadge(a.statut)}
+        ${PGA_UI.fmt.cnibBadge(a.cnib_statut)}
+        <div class="hero-chip">
+          <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+          ${a.village || '—'} · ${a.formation_sanitaire || '—'} · ${a.district || '—'}
+        </div>
+        <div class="hero-chip">📏 ${a.profil_distance === 'plus_5km' ? '≥ 5 km' : '< 5 km'} ${a.distance_km ? `(${a.distance_km} km)` : ''}</div>
+        <div class="hero-chip">📅 Recruté le ${a.date_recrutement || '—'}</div>
+      </div>
+    </div>
+    <div class="hero-actions">
+      ${peutModifier  ? `<button class="btn-secondary btn-sm" onclick="window.location.href='asbc.html?edit=${a.id}'">Modifier</button>` : ''}
+      ${peutValider   ? `<button class="btn-primary   btn-sm" onclick="validerAsbc('${a.id}','${PGA_UI.escapeHtml(a.nom_complet).replace(/'/g, "\\'")}')">Valider DSC</button>` : ''}
+      ${peutRejeter   ? `<button class="btn-danger    btn-sm" onclick="rejeterAsbc('${a.id}','${PGA_UI.escapeHtml(a.nom_complet).replace(/'/g, "\\'")}')">Rejeter</button>` : ''}
+      ${peutDesact    ? `<button class="btn-danger    btn-sm" onclick="desactiverAsbc('${a.id}','${PGA_UI.escapeHtml(a.nom_complet).replace(/'/g, "\\'")}')">Désactiver</button>` : ''}
+      ${peutReactiv   ? `<button class="btn-primary   btn-sm" onclick="reactiverAsbc('${a.id}','${PGA_UI.escapeHtml(a.nom_complet).replace(/'/g, "\\'")}')">Réactiver</button>` : ''}
+    </div>
+  `;
+}
+
+// ── INFOS ─────────────────────────────────────────────────────────────────────
+function renderInfos(a) {
+  document.getElementById('infos-grid').innerHTML = `
+    <!-- Identité -->
+    <div class="info-block" style="animation-delay:.05s">
+      <div class="ib-title"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>Identité civile</div>
+      <div class="ib-row"><span class="ib-label">Nom complet</span><span class="ib-val">${PGA_UI.escapeHtml(a.nom_complet || '—')}</span></div>
+      <div class="ib-row"><span class="ib-label">Date de naissance</span><span class="ib-mono">${a.date_naissance || '—'}</span></div>
+      <div class="ib-row"><span class="ib-label">CNIB</span><span class="ib-mono">${a.cnib_numero || '—'}</span></div>
+      <div class="ib-row"><span class="ib-label">CNIB — expiration</span><span class="ib-mono" style="color:${a.cnib_statut==='expire'?'var(--red)':a.cnib_statut==='expiration_proche'?'var(--amber)':'var(--text)'}">${a.cnib_date_expiration || '—'}</span></div>
+    </div>
+    <!-- Contact -->
+    <div class="info-block" style="animation-delay:.10s">
+      <div class="ib-title"><svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>Contact & accès</div>
+      <div class="ib-row"><span class="ib-label">Téléphone (Orange Money)</span><span class="ib-mono">${a.telephone || '—'}</span></div>
+      ${a.telephone_alternatif ? `<div class="ib-row"><span class="ib-label">Téléphone alt.</span><span class="ib-mono">${a.telephone_alternatif}</span></div>` : ''}
+      <div class="ib-row"><span class="ib-label">Date d'activation</span><span class="ib-mono">${a.date_activation || '—'}</span></div>
+      <div class="ib-row"><span class="ib-label">Enregistré par</span><span class="ib-val">${PGA_UI.escapeHtml(a.cree_par?.nom_complet || '—')}</span></div>
+      ${a.valide_par ? `<div class="ib-row"><span class="ib-label">Validé par</span><span class="ib-val">${PGA_UI.escapeHtml(a.valide_par?.nom_complet || '—')}</span></div>` : ''}
+    </div>
+    <!-- Localisation -->
+    <div class="info-block" style="animation-delay:.15s">
+      <div class="ib-title"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>Localisation</div>
+      <div class="ib-row"><span class="ib-label">Village</span><span class="ib-val">${a.village || '—'}</span></div>
+      <div class="ib-row"><span class="ib-label">CSPS</span><span class="ib-val">${a.formation_sanitaire || '—'}</span></div>
+      <div class="ib-row"><span class="ib-label">District</span><span class="ib-val">${a.district || '—'}</span></div>
+      <div class="ib-row"><span class="ib-label">Province</span><span class="ib-val">${a.province || '—'}</span></div>
+      <div class="ib-row"><span class="ib-label">Région</span><span class="ib-val">${a.region || '—'}</span></div>
+    </div>
+  `;
+}
+
+// ── HISTORIQUE STATUTS ────────────────────────────────────────────────────────
+function renderStatutsHist(data) {
+  const tbody = document.getElementById('statuts-hist-tbody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state"><span class="ico">📋</span><p>Aucun statut enregistré.</p></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(s => {
+    const criteres = ['outils_a_jour','activites_realisees','rma_produit','reunion_participee']
+      .map(k => {
+        const col = s[k] === true ? '#2ECC7A' : s[k] === false ? '#E8524A' : '#5A6578';
+        return `<div class="crit-dot" style="background:${col}" title="${k}: ${s[k] === true ? 'Oui' : s[k] === false ? 'Non' : '—'}"></div>`;
+      }).join('');
+
+    const statGlobal = { fonctionnel:'badge-green', non_fonctionnel:'badge-red', incomplet:'badge-gray' }[s.statut_global] || 'badge-gray';
+    const statValid  = { brouillon:'badge-gray', valide_rps:'badge-blue', lu_directeur:'badge-amber', verrouille:'badge-green' }[s.statut_validation] || 'badge-gray';
+    const labGlobal  = { fonctionnel:'Fonctionnel', non_fonctionnel:'Non fonct.', incomplet:'Incomplet' }[s.statut_global] || s.statut_global;
+    const labValid   = { brouillon:'Brouillon', valide_rps:'Validé RPS', lu_directeur:'Lu Directeur', verrouille:'Verrouillé' }[s.statut_validation] || s.statut_validation;
+
+    return `<tr>
+      <td class="cell-mono">${PGA_UI.fmt.periode(s.periode_mois)}</td>
+      <td>
+        <div class="crit-mini">${criteres}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px;letter-spacing:.04em">O · A · R · M</div>
+      </td>
+      <td><span class="badge ${statGlobal}">${labGlobal}</span></td>
+      <td>
+        <span class="badge ${statValid}">${labValid}</span>
+        ${s.valide_rps_le ? `<div class="cell-sub" style="margin-top:3px">${s.valide_rps_le}</div>` : ''}
+      </td>
+      <td style="font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.commentaire_icp || s.commentaire_rps || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── HISTORIQUE PAIEMENTS ──────────────────────────────────────────────────────
+function renderPaiementsHist(data) {
+  const tbody = document.getElementById('pay-hist-tbody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state"><span class="ico">💳</span><p>Aucun paiement enregistré.</p></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(p => {
+    const statBadge = { reussi:'badge-green', echec:'badge-red', introuvable:'badge-amber', en_attente:'badge-gray' }[p.statut] || 'badge-gray';
+    const statLabel = { reussi:'Réussi', echec:'Échec', introuvable:'Introuvable', en_attente:'En attente' }[p.statut] || p.statut;
+    return `<tr>
+      <td class="cell-mono">${PGA_UI.fmt.periode(p.periode_mois)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:${p.statut==='reussi'?'var(--green)':'var(--text2)'}">${PGA_UI.fmt.montant(p.montant)}</td>
+      <td class="cell-mono">${p.telephone_orange || '—'}</td>
+      <td><span class="badge ${statBadge}">${statLabel}</span></td>
+      <td>${p.confirme_par_asbc ? `<span style="color:var(--green);font-size:12px">✓ ${p.confirme_le?.slice(0,10)||''}</span>` : `<span style="color:var(--text3);font-size:12px">—</span>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── TABS HISTORIQUE ────────────────────────────────────────────────────────────
+function changerHTab(el) {
+  document.querySelectorAll('[data-htab]').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('[id^="htab-"]').forEach(t => t.style.display = 'none');
+  document.getElementById(`htab-${el.dataset.htab}`).style.display = 'block';
+}
+
+// ── ACTIONS ───────────────────────────────────────────────────────────────────
+async function validerAsbc(id, nom) {
+  const ok = await PGA_UI.confirmer('Valider cet ASBC', `Confirmer la validation de <strong>${nom}</strong> ?`, { labelOk: 'Valider' });
+  if (!ok) return;
+  try {
+    await PGA_API.asbc.valider(id);
+    PGA_UI.toast('ASBC validé et activé.', 'success');
+    chargerAsbc(id);
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+}
+
+async function rejeterAsbc(id, nom) {
+  const motif = prompt(`Motif de rejet pour ${nom} (min. 10 caractères) :`);
+  if (!motif || motif.trim().length < 10) {
+    if (motif !== null) PGA_UI.toast('Motif trop court (minimum 10 caractères).', 'warning');
+    return;
+  }
+  const ok = await PGA_UI.confirmer('Rejeter cet ASBC', `Rejeter <strong>${nom}</strong> ?<br>Le district sera notifié.`, { labelOk: 'Rejeter', danger: true });
+  if (!ok) return;
+  try {
+    await PGA_API.asbc.rejeter(id, { motif });
+    PGA_UI.toast(`${nom} rejeté.`, 'warning');
+    chargerAsbc(id);
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+}
+
+async function reactiverAsbc(id, nom) {
+  const ok = await PGA_UI.confirmer('Réactiver cet ASBC', `Réactiver <strong>${nom}</strong> et le remettre à l'état actif ?`, { labelOk: 'Réactiver' });
+  if (!ok) return;
+  try {
+    await PGA_API.asbc.reactiver(id);
+    PGA_UI.toast(`${nom} réactivé.`, 'success');
+    chargerAsbc(id);
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+}
+
+async function desactiverAsbc(id, nom) {
+  const ok = await PGA_UI.confirmer('Désactiver cet ASBC', `Désactiver <strong>${nom}</strong> ?<br>Cette action requiert un motif.`, { labelOk: 'Continuer', danger: true });
+  if (!ok) return;
+  const motif = prompt('Motif :\nabandon_poste / deces / demenagement / non_fonctionnalite_prolongee / retraite / autre');
+  if (!motif) return;
+  try {
+    await PGA_API.asbc.desactiver(id, { motif_desactivation: motif });
+    PGA_UI.toast(`${nom} désactivé.`, 'success');
+    chargerAsbc(id);
+  } catch (err) { PGA_UI.toast(err.message, 'error'); }
+}
+</script>
+</body>
+</html>

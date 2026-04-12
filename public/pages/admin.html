@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Administration</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/pga-shared.css">
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<style>
+/* ── RÔLE BADGE ── */
+.role-badge {
+  padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em;
+}
+/* ── SESSION CARD ── */
+.session-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 18px 20px; transition: border-color .15s;
+}
+.session-card:hover { border-color: var(--border2); }
+.session-card-head  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.session-periode    { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+.session-dates      { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.sd-item            { display: flex; flex-direction: column; gap: 3px; }
+.sd-label           { font-size: 9px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .1em; }
+.sd-val             { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); }
+/* ── AUDIT LOG ── */
+.audit-row          { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+.audit-row:last-child { border-bottom: none; }
+.audit-icon         { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.audit-icon svg     { width: 14px; height: 14px; }
+.audit-body         { flex: 1; }
+.audit-action       { font-size: 12px; font-weight: 600; color: var(--text); }
+.audit-meta         { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.audit-time         { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text3); flex-shrink: 0; }
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar"></aside>
+<main class="main">
+  <header class="topbar" id="topbar"></header>
+  <div class="content">
+
+    <!-- Tabs admin -->
+    <div class="tabs" style="margin-bottom:20px">
+      <div class="tab active" data-onglet="utilisateurs" onclick="changerOnglet(this)">Utilisateurs</div>
+      <div class="tab"        data-onglet="sessions"     onclick="changerOnglet(this)">Sessions de saisie</div>
+      <div class="tab"        data-onglet="audit"        onclick="changerOnglet(this)">Journal d'audit</div>
+    </div>
+
+    <!-- ══ ONGLET UTILISATEURS ══ -->
+    <div id="onglet-utilisateurs">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input class="search-input" type="text" id="user-search" placeholder="Rechercher un utilisateur…" oninput="filtrerUtilisateurs()">
+        </div>
+        <div class="tabs">
+          <div class="tab active" data-role="" onclick="changerFiltreRole(this)">Tous</div>
+          <div class="tab" data-role="admin_dsc" onclick="changerFiltreRole(this)">Admin DSC</div>
+          <div class="tab" data-role="rps" onclick="changerFiltreRole(this)">RPS</div>
+          <div class="tab" data-role="icp" onclick="changerFiltreRole(this)">ICP</div>
+        </div>
+        <button class="btn-primary" onclick="ouvrirFormUser()">
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:#0D1117"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Nouvel utilisateur
+        </button>
+      </div>
+      <div class="panel">
+        <table class="data-table">
+          <thead><tr>
+            <th>Utilisateur</th><th>Rôle</th><th>Zone</th><th>Statut</th><th>Dernière connexion</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="users-tbody"><tr><td colspan="6" class="empty-state"><span class="ico">⏳</span><p>Chargement…</p></td></tr></tbody>
+        </table>
+        <div id="pagination-users"></div>
+      </div>
+    </div>
+
+    <!-- ══ ONGLET SESSIONS ══ -->
+    <div id="onglet-sessions" style="display:none">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn-primary" onclick="ouvrirFormSession()">
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:#0D1117"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Nouvelle session
+        </button>
+      </div>
+      <div id="sessions-grid" style="display:flex;flex-direction:column;gap:12px">
+        <div style="text-align:center;padding:30px;color:var(--text3)">${PGA_UI.spinnerHtml ? '' : '⏳'} Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ══ ONGLET AUDIT ══ -->
+    <div id="onglet-audit" style="display:none">
+      <div class="filter-bar" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <select id="audit-action-filter" onchange="chargerAudit()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 12px;font-size:12px;color:var(--text);outline:none">
+          <option value="">Toutes les actions</option>
+          <option value="creation">Création</option>
+          <option value="modification">Modification</option>
+          <option value="desactivation">Désactivation</option>
+          <option value="validation">Validation</option>
+          <option value="export">Export</option>
+          <option value="connexion">Connexion</option>
+          <option value="import">Import</option>
+          <option value="derogation">Dérogation</option>
+        </select>
+        <select id="audit-entite-filter" onchange="chargerAudit()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:7px 12px;font-size:12px;color:var(--text);outline:none">
+          <option value="">Toutes les entités</option>
+          <option value="asbc">ASBC</option>
+          <option value="utilisateur">Utilisateur</option>
+          <option value="statut_fonctionnement">Statut fonctionnement</option>
+          <option value="import_paiement">Import paiement</option>
+          <option value="session_saisie">Session saisie</option>
+        </select>
+        <button class="btn-secondary btn-sm" onclick="chargerAudit()">Actualiser</button>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Journal des actions</div></div>
+        <div class="panel-body" style="padding:0">
+          <div id="audit-feed" style="padding:12px 18px;display:flex;flex-direction:column"></div>
+        </div>
+        <div id="pagination-audit"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Drawer Utilisateur -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="fermerDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-title" id="drawer-title">Nouvel utilisateur</div>
+    <div class="drawer-close" onclick="fermerDrawer()">×</div>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-footer" id="drawer-footer"></div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let tousLesUsers = [], filtreRole = '', editUserId = null;
+let auditPage = 1, currentUserRole = '';
+const ROLE_LABELS = { admin_dsc:'Admin DSC', superviseur_dsc:'Superviseur DSC', drs:'Dir. Régional', rps:'Resp. District', icp:'ICP', ptf:'PTF' };
+const ROLE_COLORS = { admin_dsc:'#E8524A', superviseur_dsc:'#F0A030', drs:'#5B9CF6', rps:'#2ECC7A', icp:'#2ECC7A', ptf:'#5A6578' };
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await PGA_LAYOUT.init('admin', 'Administration');
+  if (!user) return;
+  currentUserRole = user.role;
+  // Seul admin_dsc peut accéder
+  if (!['admin_dsc', 'superviseur_dsc'].includes(user.role)) {
+    document.querySelector('.content').innerHTML = `<div class="empty-state"><span class="ico">🔒</span><p>Accès réservé aux administrateurs DSC.</p></div>`;
+    return;
+  }
+  await chargerUtilisateurs();
+});
+
+// ── NAVIGATION ONGLETS ────────────────────────────────────────────────────────
+function changerOnglet(el) {
+  document.querySelectorAll('[data-onglet]').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('[id^="onglet-"]').forEach(o => o.style.display = 'none');
+  const onglet = el.dataset.onglet;
+  document.getElementById(`onglet-${onglet}`).style.display = 'block';
+  if (onglet === 'sessions') chargerSessions();
+  if (onglet === 'audit')    chargerAudit();
+}
+
+// ── UTILISATEURS ──────────────────────────────────────────────────────────────
+async function chargerUtilisateurs() {
+  try {
+    const res = await PGA_API.admin.utilisateurs.liste();
+    tousLesUsers = res.data || res;
+    renderUtilisateurs(tousLesUsers);
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur chargement utilisateurs', 'error'); }
+}
+
+function renderUtilisateurs(data) {
+  const tbody = document.getElementById('users-tbody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><span class="ico">👤</span><p>Aucun utilisateur.</p></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(u => {
+    const roleColor = ROLE_COLORS[u.role] || '#5A6578';
+    return `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,${roleColor}44,${roleColor}22);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:${roleColor};flex-shrink:0">
+            ${(u.nom_complet || u.nom || '?').split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase()}
+          </div>
+          <div>
+            <div class="cell-name">${u.nom} ${u.prenom}</div>
+            <div class="cell-sub">${u.email}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="role-badge" style="background:${roleColor}22;color:${roleColor};border:1px solid ${roleColor}44">${ROLE_LABELS[u.role] || u.role}</span></td>
+      <td style="font-size:12px;color:var(--text2)">${u.zone_type ? `${u.zone_type} · ${u.zone_nom || u.zone_id?.slice(0,8) + '…'}` : 'National'}</td>
+      <td>${u.actif
+        ? `<span class="badge badge-green">Actif</span>`
+        : `<span class="badge badge-red">Désactivé</span>`}</td>
+      <td class="cell-mono" style="font-size:10px">${u.derniere_connexion || '—'}</td>
+      <td style="display:flex;gap:5px;padding-top:8px;padding-bottom:8px" onclick="event.stopPropagation()">
+        <button class="btn-secondary btn-sm" onclick="ouvrirFormUser(${JSON.stringify(u).replace(/"/g,'&quot;')})">Modifier</button>
+        <button class="btn-secondary btn-sm" onclick="reinitMdp('${u.id}','${u.nom} ${u.prenom}')">Réinit. MDP</button>
+        ${u.actif
+          ? `<button class="btn-danger btn-sm" onclick="desactiverUser('${u.id}','${u.nom} ${u.prenom}')">Désactiver</button>`
+          : `<button class="btn-secondary btn-sm" style="color:var(--green);border-color:rgba(46,204,122,.3)" onclick="reactiverUser('${u.id}','${u.nom} ${u.prenom}')">Réactiver</button>`}
+        ${currentUserRole === 'admin_dsc' ? `<button class="btn-danger btn-sm" style="background:rgba(232,82,74,.15);border:1px solid rgba(232,82,74,.3);color:#E8524A" onclick="supprimerUser('${u.id}','${u.nom} ${u.prenom}')">Supprimer</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filtrerUtilisateurs() {
+  const terme = document.getElementById('user-search').value.toLowerCase();
+  let filtres = tousLesUsers;
+  if (filtreRole) filtres = filtres.filter(u => u.role === filtreRole);
+  if (terme)      filtres = filtres.filter(u => (u.nom + ' ' + u.prenom + ' ' + u.email).toLowerCase().includes(terme));
+  renderUtilisateurs(filtres);
+}
+
+function changerFiltreRole(el) {
+  document.querySelectorAll('[data-role]').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  filtreRole = el.dataset.role;
+  filtrerUtilisateurs();
+}
+
+// ── FORM UTILISATEUR ──────────────────────────────────────────────────────────
+function ouvrirFormUser(user = null) {
+  editUserId = user?.id || null;
+  document.getElementById('drawer-title').textContent = user ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur';
+
+  document.getElementById('drawer-body').innerHTML = `
+    <form id="user-form">
+      <div class="form-section">
+        <div class="form-section-title">Identité</div>
+        <div class="form-grid-2">
+          <div class="form-field"><label class="required">Nom</label><input type="text" name="nom" value="${user?.nom||''}" placeholder="OUEDRAOGO" required></div>
+          <div class="form-field"><label class="required">Prénom</label><input type="text" name="prenom" value="${user?.prenom||''}" placeholder="Idrissa" required></div>
+        </div>
+        <div class="form-field"><label class="required">Email</label><input type="email" name="email" value="${user?.email||''}" placeholder="utilisateur@dsc.gov.bf" required></div>
+        <div class="form-field"><label>Téléphone</label><input type="tel" name="telephone" value="${user?.telephone||''}" placeholder="07012345"></div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">Rôle et accès</div>
+        <div class="form-field">
+          <label class="required">Rôle</label>
+          <select name="role" required onchange="majZoneForm(this.value)">
+            <option value="">— Sélectionner un rôle —</option>
+            ${Object.entries(ROLE_LABELS).map(([val,lbl]) =>
+              `<option value="${val}" ${user?.role === val ? 'selected' : ''}>${lbl}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <div id="zone-form-fields" style="display:none">
+          <div class="form-field">
+            <label>Type de zone</label>
+            <select name="zone_type" onchange="onZoneTypeChange(this.value)">
+              <option value="">National (pas de restriction)</option>
+              <option value="region"    ${user?.zone_type==='region'    ?'selected':''}>Région</option>
+              <option value="district"  ${user?.zone_type==='district'  ?'selected':''}>District</option>
+              <option value="formation" ${user?.zone_type==='formation' ?'selected':''}>CSPS / Formation sanitaire</option>
+            </select>
+          </div>
+          <div id="zone-cascade" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="form-field" id="zone-region-field" style="display:none">
+              <label>Région</label>
+              <select id="zone-region-sel" onchange="onZoneCascadeChange('region')"><option value="">— Région —</option></select>
+            </div>
+            <div class="form-field" id="zone-district-field" style="display:none">
+              <label>District</label>
+              <select id="zone-district-sel" onchange="onZoneCascadeChange('district')"><option value="">— District —</option></select>
+            </div>
+            <div class="form-field" id="zone-formation-field" style="display:none">
+              <label>CSPS / Formation</label>
+              <select id="zone-formation-sel" onchange="onZoneCascadeChange('formation')"><option value="">— CSPS —</option></select>
+            </div>
+          </div>
+          <input type="hidden" name="zone_id" id="zone-id-hidden" value="${user?.zone_id||''}">
+        </div>
+        ${user ? `<div class="form-field"><label>Statut</label>
+          <select name="actif">
+            <option value="1" ${user.actif ? 'selected' : ''}>Actif</option>
+            <option value="0" ${!user.actif ? 'selected' : ''}>Désactivé</option>
+          </select>
+        </div>` : ''}
+      </div>
+    </form>
+  `;
+
+  document.getElementById('drawer-footer').innerHTML = `
+    <button class="btn-secondary" onclick="fermerDrawer()">Annuler</button>
+    <button class="btn-primary" onclick="soumettreUser()">
+      ${user ? 'Enregistrer les modifications' : 'Créer le compte'}
+    </button>
+  `;
+
+  // Afficher le champ zone si rôle déjà sélectionné
+  if (user?.role) majZoneForm(user.role);
+
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+
+function majZoneForm(role) {
+  const zoneDiv = document.getElementById('zone-form-fields');
+  const showZone = ['drs','rps','icp'].includes(role);
+  zoneDiv.style.display = showZone ? 'block' : 'none';
+
+  if (!showZone) {
+    // Rôle central → nettoyer les champs zone
+    const zt = document.querySelector('[name="zone_type"]');
+    if (zt) zt.value = '';
+    const hidden = document.getElementById('zone-id-hidden');
+    if (hidden) hidden.value = '';
+    return;
+  }
+
+  const zt = document.querySelector('[name="zone_type"]');
+  // Auto-sélectionner le type de zone approprié si vide
+  if (role === 'icp' && !zt.value) zt.value = 'formation';
+  else if (role === 'rps' && !zt.value) zt.value = 'district';
+  else if (role === 'drs' && !zt.value) zt.value = 'region';
+
+  // Toujours afficher la cascade (y compris en édition)
+  onZoneTypeChange(zt.value);
+}
+
+function onZoneTypeChange(zoneType) {
+  const regionField = document.getElementById('zone-region-field');
+  const districtField = document.getElementById('zone-district-field');
+  const formationField = document.getElementById('zone-formation-field');
+  const hidden = document.getElementById('zone-id-hidden');
+
+  regionField.style.display = 'none';
+  districtField.style.display = 'none';
+  formationField.style.display = 'none';
+
+  // Ne pas effacer zone_id en mode édition (il sera conservé tant que l'utilisateur ne change pas)
+  if (!editUserId) hidden.value = '';
+
+  // Retirer l'ancien message de zone actuelle
+  const oldInfo = document.getElementById('zone-current-info');
+  if (oldInfo) oldInfo.remove();
+
+  if (!zoneType) return;
+
+  // En mode édition, afficher la zone actuelle
+  if (editUserId && hidden.value) {
+    const editUser = tousLesUsers.find(u => u.id === editUserId);
+    if (editUser?.zone_nom) {
+      const info = document.createElement('div');
+      info.id = 'zone-current-info';
+      info.style.cssText = 'padding:8px 12px;background:rgba(91,156,246,.08);border:1px solid rgba(91,156,246,.2);border-radius:var(--r);font-size:12px;color:var(--blue,#5B9CF6);margin-bottom:8px';
+      info.innerHTML = `Zone actuelle : <strong>${PGA_UI.escapeHtml(editUser.zone_nom)}</strong> — Utilisez les menus ci-dessous pour modifier`;
+      document.getElementById('zone-cascade').before(info);
+    }
+  }
+
+  // Pour tous les types, commencer par charger les régions
+  regionField.style.display = 'block';
+  chargerRegions();
+
+  if (zoneType === 'district' || zoneType === 'formation') {
+    districtField.style.display = 'block';
+  }
+  if (zoneType === 'formation') {
+    formationField.style.display = 'block';
+  }
+}
+
+async function chargerRegions() {
+  const sel = document.getElementById('zone-region-sel');
+  sel.innerHTML = '<option value="">Chargement…</option>';
+  try {
+    const data = await PGA_API.geo.regions();
+    sel.innerHTML = '<option value="">— Sélectionner une région —</option>';
+    (Array.isArray(data) ? data : []).forEach(r => sel.appendChild(new Option(r.nom, r.id)));
+  } catch { sel.innerHTML = '<option value="">Erreur</option>'; }
+}
+
+async function onZoneCascadeChange(level) {
+  const zoneType = document.querySelector('[name="zone_type"]').value;
+  const regionSel = document.getElementById('zone-region-sel');
+  const districtSel = document.getElementById('zone-district-sel');
+  const formationSel = document.getElementById('zone-formation-sel');
+  const hidden = document.getElementById('zone-id-hidden');
+
+  if (level === 'region') {
+    // Réinitialiser les niveaux inférieurs
+    districtSel.innerHTML = '<option value="">— District —</option>';
+    formationSel.innerHTML = '<option value="">— CSPS —</option>';
+
+    if (zoneType === 'region') {
+      hidden.value = regionSel.value;
+      return;
+    }
+
+    // Charger les districts de cette région
+    if (regionSel.value) {
+      districtSel.innerHTML = '<option value="">Chargement…</option>';
+      try {
+        const data = await PGA_API.geo.districtsByRegion(regionSel.value);
+        districtSel.innerHTML = '<option value="">— Sélectionner un district —</option>';
+        (Array.isArray(data) ? data : []).forEach(d => districtSel.appendChild(new Option(d.nom, d.id)));
+      } catch { districtSel.innerHTML = '<option value="">Erreur</option>'; }
+    }
+  }
+
+  if (level === 'district') {
+    formationSel.innerHTML = '<option value="">— CSPS —</option>';
+
+    if (zoneType === 'district') {
+      hidden.value = districtSel.value;
+      return;
+    }
+
+    // Charger les formations de ce district
+    if (districtSel.value) {
+      formationSel.innerHTML = '<option value="">Chargement…</option>';
+      try {
+        const data = await PGA_API.geo.formationsParDistrict(districtSel.value);
+        formationSel.innerHTML = '<option value="">— Sélectionner un CSPS —</option>';
+        (Array.isArray(data) ? data : []).forEach(f => formationSel.appendChild(new Option(f.nom, f.id)));
+      } catch { formationSel.innerHTML = '<option value="">Erreur</option>'; }
+    }
+  }
+
+  if (level === 'formation') {
+    hidden.value = formationSel.value;
+  }
+}
+
+async function soumettreUser() {
+  const form = document.getElementById('user-form');
+  PGA_UI.nettoyerErreursForm(form);
+  const data = Object.fromEntries(new FormData(form));
+  if (data.actif !== undefined) data.actif = data.actif === '1';
+
+  // Nettoyer zone pour les rôles centraux (pas de restriction géographique)
+  const rolesCentraux = ['admin_dsc', 'superviseur_dsc', 'ptf'];
+  if (rolesCentraux.includes(data.role)) {
+    data.zone_type = null;
+    data.zone_id   = null;
+  }
+
+  // Validation côté client : zone obligatoire pour rôles régionaux
+  if (['drs','rps','icp'].includes(data.role) && !data.zone_id) {
+    PGA_UI.toast('Veuillez sélectionner une zone d\'affectation.', 'error');
+    return;
+  }
+
+  try {
+    let res;
+    if (editUserId) {
+      res = await PGA_API.admin.utilisateurs.modifier(editUserId, data);
+      PGA_UI.toast('Utilisateur mis à jour.', 'success');
+    } else {
+      res = await PGA_API.admin.utilisateurs.creer(data);
+      if (res.mdp_temp) {
+        const emailInfo = res.email_envoye
+          ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(46,204,122,.1);border-radius:6px;font-size:12px;color:var(--green);">&#9989; Les identifiants ont été envoyés par email.</div>`
+          : `<div style="margin-top:12px;padding:10px 14px;background:rgba(240,160,48,.1);border-radius:6px;font-size:12px;color:var(--amber);">&#9888; L'envoi de l'email a échoué. Transmettez le mot de passe manuellement.</div>`;
+        await PGA_UI.confirmer(
+          'Compte créé',
+          `Mot de passe temporaire : <strong style="font-family:'IBM Plex Mono',monospace;color:var(--green);font-size:15px">${res.mdp_temp}</strong>${emailInfo}`,
+          { labelOk: 'J\'ai noté', labelAnnul: null }
+        );
+      }
+      PGA_UI.toast('Compte créé avec succès.', 'success');
+    }
+    fermerDrawer();
+    chargerUtilisateurs();
+  } catch (err) {
+    if (err.type === 'validation') PGA_UI.afficherErreursForm(form, err.erreurs);
+    PGA_UI.toast(err.message || 'Erreur', 'error');
+  }
+}
+
+async function reinitMdp(id, nom) {
+  const ok = await PGA_UI.confirmer('Réinitialiser le mot de passe', `Réinitialiser le MDP de <strong>${nom}</strong> ?`, { labelOk: 'Réinitialiser', danger: true });
+  if (!ok) return;
+  try {
+    const res = await PGA_API.admin.utilisateurs.reinitMdp(id);
+    const emailInfo = res.email_envoye
+      ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(46,204,122,.1);border-radius:6px;font-size:12px;color:var(--green);">&#9989; Le nouveau mot de passe a été envoyé par email.</div>`
+      : `<div style="margin-top:12px;padding:10px 14px;background:rgba(240,160,48,.1);border-radius:6px;font-size:12px;color:var(--amber);">&#9888; L'envoi de l'email a échoué. Transmettez le mot de passe manuellement.</div>`;
+    await PGA_UI.confirmer(
+      'MDP réinitialisé',
+      `Nouveau mot de passe temporaire :<br><strong style="font-family:'IBM Plex Mono',monospace;color:var(--green);font-size:15px">${res.mdp_temp}</strong>${emailInfo}`,
+      { labelOk: 'J\'ai noté', labelAnnul: null }
+    );
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur', 'error'); }
+}
+
+async function desactiverUser(id, nom) {
+  const ok = await PGA_UI.confirmer('Désactiver le compte', `Désactiver le compte de <strong>${nom}</strong> ?`, { labelOk: 'Désactiver', danger: true });
+  if (!ok) return;
+  try {
+    await PGA_API.admin.utilisateurs.desactiver(id);
+    PGA_UI.toast(`Compte de ${nom} désactivé.`, 'success');
+    chargerUtilisateurs();
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur', 'error'); }
+}
+
+async function reactiverUser(id, nom) {
+  const ok = await PGA_UI.confirmer('Réactiver le compte', `Réactiver le compte de <strong>${nom}</strong> ?`, { labelOk: 'Réactiver' });
+  if (!ok) return;
+  try {
+    await PGA_API.admin.utilisateurs.modifier(id, { actif: true });
+    PGA_UI.toast(`Compte de ${nom} réactivé.`, 'success');
+    chargerUtilisateurs();
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur', 'error'); }
+}
+
+async function supprimerUser(id, nom) {
+  const ok = await PGA_UI.confirmer(
+    'Supprimer définitivement',
+    `<div style="color:var(--red);font-weight:600;margin-bottom:8px">Cette action est irréversible.</div>
+     Supprimer définitivement le compte de <strong>${nom}</strong> ?<br>
+     <span style="font-size:12px;color:var(--text3)">Toutes les données associées seront perdues.</span>`,
+    { labelOk: 'Supprimer définitivement', danger: true }
+  );
+  if (!ok) return;
+  try {
+    await PGA_API.admin.utilisateurs.supprimer(id);
+    PGA_UI.toast(`Compte de ${nom} supprimé définitivement.`, 'success');
+    chargerUtilisateurs();
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur', 'error'); }
+}
+
+// ── SESSIONS SAISIE ───────────────────────────────────────────────────────────
+async function chargerSessions() {
+  try {
+    const res = await PGA_API.admin.sessions.liste();
+    const data = res.data || res;
+    const grid = document.getElementById('sessions-grid');
+    if (!data.length) {
+      grid.innerHTML = `<div class="empty-state"><span class="ico">📅</span><p>Aucune session configurée.</p></div>`;
+      return;
+    }
+    const statutColors = { saisie_ouverte:['#2ECC7A','rgba(46,204,122,.1)'], saisie_fermee:['#F0A030','rgba(240,160,48,.1)'], verrouille:['#E8524A','rgba(232,82,74,.1)'], a_venir:['#5A6578','var(--bg3)'] };
+    grid.innerHTML = data.map(s => {
+      const [col, bg] = statutColors[s.statut] || ['#5A6578','var(--bg3)'];
+      const lbl = { a_venir:'À venir', saisie_ouverte:'Ouvert', saisie_fermee:'Fermé', verrouille:'Verrouillé' }[s.statut] || s.statut;
+      return `
+        <div class="session-card">
+          <div class="session-card-head">
+            <div class="session-periode">${PGA_UI.fmt.periode(s.periode_mois)}</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;text-transform:uppercase;background:${bg};color:${col};border:1px solid ${col}44">${lbl}</span>
+              ${s.statut !== 'verrouille'
+                ? `<button class="btn-secondary btn-sm" onclick="ouvrirFormSession(${JSON.stringify(s).replace(/"/g,'&quot;')})">Modifier</button>`
+                : ''}
+              ${s.statut !== 'verrouille'
+                ? `<button class="btn-secondary btn-sm" onclick="verrouillerSession('${s.id}', '${s.periode_mois}')">🔒 Verrouiller</button>`
+                : ''}
+              <button class="btn-amber btn-sm" onclick="ouvrirDerogation('${s.id}', '${s.periode_mois}')">Dérogation</button>
+            </div>
+          </div>
+          <div class="session-dates">
+            <div class="sd-item"><div class="sd-label">Ouverture saisie</div><div class="sd-val">${s.ouverture_saisie?.slice(0,10) || '—'}</div></div>
+            <div class="sd-item"><div class="sd-label">Fermeture ICP</div><div class="sd-val">${s.fermeture_saisie?.slice(0,10) || '—'}</div></div>
+            <div class="sd-item"><div class="sd-label">Lecture RPS</div><div class="sd-val">${s.fermeture_rps?.slice(0,10) || '—'}</div></div>
+            <div class="sd-item"><div class="sd-label">Verrouillage</div><div class="sd-val">${s.verrouillage?.slice(0,10) || '—'}</div></div>
+          </div>
+          ${s.derogation_active ? `<div style="margin-top:10px;padding:8px 12px;background:rgba(240,160,48,.08);border-radius:var(--r);font-size:11px;color:var(--amber)">⚠ Dérogation active jusqu'au ${s.derogation_expiration?.slice(0,10)} · ${s.derogation_justification}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur sessions', 'error'); }
+}
+
+function ouvrirFormSession(session = null) {
+  document.getElementById('drawer-title').textContent = session ? 'Modifier la session' : 'Nouvelle session de saisie';
+
+  document.getElementById('drawer-body').innerHTML = `
+    <form id="session-form">
+      ${!session ? `<div class="form-field"><label class="required">Période (YYYY-MM)</label><input type="text" name="periode_mois" placeholder="2026-04" pattern="\\d{4}-\\d{2}" required></div>` : ''}
+      <div class="form-section">
+        <div class="form-section-title">Fenêtres temporelles</div>
+        <div class="form-grid-2">
+          <div class="form-field"><label class="required">Ouverture saisie ICP</label><input type="datetime-local" name="ouverture_saisie" value="${session?.ouverture_saisie?.slice(0,16)||''}" required></div>
+          <div class="form-field"><label class="required">Fermeture saisie ICP</label><input type="datetime-local" name="fermeture_saisie" value="${session?.fermeture_saisie?.slice(0,16)||''}" required></div>
+          <div class="form-field"><label class="required">Fermeture RPS</label><input type="datetime-local" name="fermeture_rps" value="${session?.fermeture_rps?.slice(0,16)||''}" required></div>
+          <div class="form-field"><label class="required">Verrouillage définitif</label><input type="datetime-local" name="verrouillage" value="${session?.verrouillage?.slice(0,16)||''}" required></div>
+        </div>
+        <div style="padding:10px 14px;background:var(--bg3);border-radius:var(--r);font-size:12px;color:var(--text3);margin-top:4px">
+          Règle par défaut : Ouverture le 26 M-1 · ICP jusqu'au 05 M+1 · RPS jusqu'au 10 M+1 · Verrouillage le 15 M+1
+        </div>
+      </div>
+    </form>
+  `;
+  document.getElementById('drawer-footer').innerHTML = `
+    <button class="btn-secondary" onclick="fermerDrawer()">Annuler</button>
+    <button class="btn-primary" onclick="soumettreSession('${session?.id || ''}')">Enregistrer</button>
+  `;
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+
+async function soumettreSession(id) {
+  const form = document.getElementById('session-form');
+  const data = Object.fromEntries(new FormData(form));
+  try {
+    if (id) { await PGA_API.admin.sessions.modifier(id, data); PGA_UI.toast('Session mise à jour.', 'success'); }
+    else    { await PGA_API.admin.sessions.creer(data);         PGA_UI.toast('Session créée.', 'success'); }
+    fermerDrawer(); chargerSessions();
+  } catch (err) {
+    if (err.type === 'validation') PGA_UI.afficherErreursForm(form, err.erreurs);
+    PGA_UI.toast(err.message || 'Erreur', 'error');
+  }
+}
+
+async function verrouillerSession(id, periode) {
+  const ok = await PGA_UI.confirmer(
+    'Verrouiller la session',
+    `Verrouiller définitivement la session ${PGA_UI.fmt.periode(periode)} ? Cette action empêche toute modification ultérieure (sauf dérogation).`,
+    { labelOk: 'Verrouiller', danger: true }
+  );
+  if (!ok) return;
+  try {
+    await PGA_API.admin.sessions.verrouiller(id);
+    PGA_UI.toast('Session verrouillée.', 'success');
+    chargerSessions();
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur', 'error'); }
+}
+
+async function ouvrirDerogation(id, periode) {
+  document.getElementById('drawer-title').textContent = `Dérogation — ${PGA_UI.fmt.periode(periode)}`;
+  document.getElementById('drawer-body').innerHTML = `
+    <div style="padding:12px 14px;background:rgba(240,160,48,.08);border:1px solid rgba(240,160,48,.2);border-radius:var(--r);font-size:12px;color:var(--amber);margin-bottom:18px">
+      ⚠ Une dérogation ouvre la saisie en dehors de la fenêtre normale. Elle doit être exceptionnelle et justifiée.
+    </div>
+    <form id="derog-form">
+      <div class="form-field"><label class="required">Justification</label><textarea name="justification" rows="4" placeholder="Raison de la dérogation (minimum 20 caractères)…" required minlength="20"></textarea></div>
+      <div class="form-field"><label class="required">Expiration de la dérogation</label><input type="datetime-local" name="expiration" required></div>
+    </form>
+  `;
+  document.getElementById('drawer-footer').innerHTML = `
+    <button class="btn-secondary" onclick="fermerDrawer()">Annuler</button>
+    <button class="btn-amber" onclick="soumettreDerogation('${id}')">Accorder la dérogation</button>
+  `;
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+
+async function soumettreDerogation(id) {
+  const form = document.getElementById('derog-form');
+  const data = Object.fromEntries(new FormData(form));
+  try {
+    await PGA_API.admin.sessions.derogation(id, data);
+    PGA_UI.toast('Dérogation accordée et tracée dans l\'audit log.', 'success');
+    fermerDrawer(); chargerSessions();
+  } catch (err) {
+    if (err.type === 'validation') PGA_UI.afficherErreursForm(form, err.erreurs);
+    PGA_UI.toast(err.message || 'Erreur', 'error');
+  }
+}
+
+// ── AUDIT LOG ─────────────────────────────────────────────────────────────────
+async function chargerAudit() {
+  const action = document.getElementById('audit-action-filter').value;
+  const entite = document.getElementById('audit-entite-filter').value;
+  const params = { page: auditPage, per_page: 30 };
+  if (action) params.action = action;
+  if (entite) params.entite = entite;
+
+  const feed = document.getElementById('audit-feed');
+  feed.innerHTML = `<div style="text-align:center;padding:20px">${PGA_UI.spinnerHtml(18)}</div>`;
+
+  try {
+    const res = await PGA_API.get('/admin/audit', params);
+    const data = res.data || [];
+    if (!data.length) { feed.innerHTML = `<div class="empty-state"><span class="ico">📋</span><p>Aucune action enregistrée.</p></div>`; return; }
+
+    const actionIcons = { creation:'<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>', modification:'<path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>', desactivation:'<path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>', validation:'<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>', export:'<path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>', import:'<path d="M5 15v4h14v-4h2v4c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2v-4h2zm8-9V3H11v3H8l4 4 4-4h-3z"/>', connexion:'<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>', derogation:'<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>' };
+    const actionColors = { creation:'#2ECC7A', modification:'#5B9CF6', desactivation:'#E8524A', validation:'#2ECC7A', export:'#5A6578', import:'#5B9CF6', connexion:'#5A6578', derogation:'#F0A030' };
+
+    feed.innerHTML = data.map(log => {
+      const col  = actionColors[log.action] || '#5A6578';
+      const icon = actionIcons[log.action] || '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>';
+      return `
+        <div class="audit-row">
+          <div class="audit-icon" style="background:${col}22">
+            <svg viewBox="0 0 24 24" style="fill:${col}">${icon}</svg>
+          </div>
+          <div class="audit-body">
+            <div class="audit-action">${log.action.charAt(0).toUpperCase() + log.action.slice(1)} — ${log.entite_label || log.entite_type}</div>
+            <div class="audit-meta">${log.utilisateur?.nom_complet || 'Système'} · ${log.utilisateur_role || '—'} · IP: ${log.ip_address || '—'}</div>
+          </div>
+          <div class="audit-time">${log.horodatage?.slice(0,16).replace('T',' ') || '—'}</div>
+        </div>
+      `;
+    }).join('');
+
+    PGA_UI.renderPagination(
+      document.getElementById('pagination-audit'),
+      res.meta,
+      (p) => { auditPage = p; chargerAudit(); }
+    );
+  } catch (err) { PGA_UI.toast(err.message || 'Erreur audit', 'error'); }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function fermerDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+}
+</script>
+</body>
+</html>

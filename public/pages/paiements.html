@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>PGA — Paiements</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script src="../js/pga-config.js"></script>
+<script src="../js/pga-api.js?v=open-1.0"></script>
+<script src="../js/pga-ui.js?v=open-1.0"></script>
+<script src="../js/pga-layout.js?v=open-1.0"></script>
+<style>
+:root{--bg:#0D1117;--bg2:#161B24;--bg3:#1E2530;--bg4:#252D3A;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--text:#E8EDF5;--text2:#8A97AC;--text3:#5A6578;--green:#2ECC7A;--amber:#F0A030;--red:#E8524A;--blue:#5B9CF6;--r:8px;--r-lg:12px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+.sidebar{width:220px;min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:50;}
+.logo-area{padding:22px 20px 18px;border-bottom:1px solid var(--border);}
+.logo-badge{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:32px;height:32px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:#0D1117;}
+.logo-armoirie{width:34px;height:34px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3));}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;color:var(--text);}
+.logo-sub{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
+.nav-section{padding:14px 12px 8px;flex:1;overflow-y:auto;}
+.nav-group{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.12em;padding:0 8px;margin:12px 0 5px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r);cursor:pointer;transition:background .15s;margin-bottom:2px;color:var(--text2);text-decoration:none;}
+.nav-item:hover{background:var(--bg3);}
+.nav-item.active{background:rgba(46,204,122,.08);color:var(--green);}
+.nav-item svg{width:16px;height:16px;fill:currentColor;flex-shrink:0;opacity:.7;}
+.nav-item.active svg{opacity:1;}
+.nav-item span{font-size:13px;font-weight:500;}
+.sidebar-footer{padding:14px 12px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r);cursor:pointer;transition:background .15s;}
+.user-row:hover{background:var(--bg3);}
+.user-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#D4724A,#F0A030);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
+.user-name{font-size:12px;font-weight:600;color:var(--text);}
+.user-role{font-size:10px;color:var(--text3);margin-top:1px;}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;}
+.topbar{height:56px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:40;}
+.page-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.02em;}
+.content{flex:1;padding:24px 28px;overflow-y:auto;}
+
+/* Upload zone */
+.upload-zone{background:var(--bg2);border:2px dashed rgba(46,204,122,.25);border-radius:var(--r-lg);padding:36px 24px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px;position:relative;}
+.upload-zone:hover,.upload-zone.drag{border-color:rgba(46,204,122,.5);background:rgba(46,204,122,.04);}
+.upload-zone.drag{transform:scale(1.005);}
+.upload-icon{width:48px;height:48px;background:rgba(46,204,122,.1);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.upload-icon svg{width:24px;height:24px;fill:var(--green);}
+.upload-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.upload-sub{font-size:12px;color:var(--text3);line-height:1.5;}
+.upload-file-input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.upload-selected{margin-top:14px;padding:10px 16px;background:var(--bg3);border-radius:var(--r);display:none;align-items:center;gap:10px;}
+.upload-selected.show{display:flex;}
+.upload-selected svg{width:16px;height:16px;fill:var(--green);}
+.upload-fname{font-size:13px;color:var(--text);font-weight:500;}
+.upload-fsize{font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;}
+
+/* Periode & form */
+.import-form{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 24px;margin-bottom:20px;}
+.form-row{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;}
+.form-field{display:flex;flex-direction:column;gap:6px;}
+.form-field label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+.form-field select,.form-field input{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;font-size:13px;color:var(--text);font-family:'Instrument Sans',sans-serif;outline:none;min-width:160px;}
+
+/* Résultats import */
+.result-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.result-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;}
+.result-val{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;letter-spacing:-.04em;line-height:1;margin-bottom:5px;}
+.result-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+
+/* Historique imports */
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
+.panel-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text);}
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);text-align:left;padding:11px 16px;border-bottom:1px solid var(--border);}
+.data-table td{padding:11px 16px;font-size:12px;color:var(--text2);border-bottom:1px solid rgba(255,255,255,.03);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tbody tr{cursor:pointer;transition:background .1s;}
+.data-table tbody tr:hover td{background:rgba(255,255,255,.02);}
+
+/* Progress bar */
+.prog-wrap{background:var(--bg4);border-radius:3px;height:6px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;border-radius:3px;background:var(--green);}
+
+.btn-primary{padding:9px 18px;background:var(--green);border:none;border-radius:var(--r);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#0D1117;cursor:pointer;transition:opacity .15s;}
+.btn-primary:hover{opacity:.9;}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;}
+.btn-secondary{padding:9px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<aside class="sidebar" id="sidebar"></aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="page-title">Paiements Orange Money</div>
+  </header>
+
+  <div class="content">
+
+    <!-- Bloc import (visible pour DSC uniquement) -->
+    <div id="section-import">
+      <div class="import-form">
+        <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">Importer un rapport de paiement</div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Période</label>
+            <select id="sel-periode"></select>
+          </div>
+          <button class="btn-primary" id="btn-importer" onclick="lancerImport()" disabled>
+            Importer le fichier
+          </button>
+        </div>
+      </div>
+
+      <!-- Zone drop fichier -->
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" class="upload-file-input" id="file-input" accept=".csv,.xlsx,.xls" onchange="fichierSelectionne(this)">
+        <div class="upload-icon"><svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg></div>
+        <div class="upload-title">Glisser-déposer le fichier Orange Money</div>
+        <div class="upload-sub">Formats acceptés : CSV, XLSX, XLS · Max 10 Mo<br>Format Orange BF : colonnes <span style="font-family:'IBM Plex Mono',monospace;font-size:11px">Mobile Number*, Amount*, ServiceRequestStatus</span></div>
+        <div class="upload-selected" id="upload-selected">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+          <span class="upload-fname" id="upload-fname">—</span>
+          <span class="upload-fsize" id="upload-fsize">—</span>
+        </div>
+      </div>
+
+      <!-- Résultats dernier import -->
+      <div id="result-section" style="display:none">
+        <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">Résultats de l'import</div>
+        <div class="result-grid" style="grid-template-columns:repeat(5,1fr)">
+          <div class="result-card"><div class="result-val" id="r-total" style="color:var(--text)">—</div><div class="result-lbl">Lignes traitées</div></div>
+          <div class="result-card"><div class="result-val" id="r-reussis" style="color:var(--green)">—</div><div class="result-lbl">Paiements réussis</div></div>
+          <div class="result-card"><div class="result-val" id="r-echecs" style="color:var(--red)">—</div><div class="result-lbl">Échecs</div></div>
+          <div class="result-card"><div class="result-val" id="r-rembourses" style="color:var(--amber)">—</div><div class="result-lbl">Remboursés</div></div>
+          <div class="result-card"><div class="result-val" id="r-introuvables" style="color:var(--text3)">—</div><div class="result-lbl">ASBC introuvables</div></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:20px">
+          <button class="btn-secondary" id="btn-cloturer" onclick="cloturer()">Clôturer l'import</button>
+          <div id="montant-total" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historique -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Historique des imports</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace" id="hist-count">—</div>
+      </div>
+      <table class="data-table">
+        <thead><tr>
+          <th>Période</th><th>Fichier</th><th>Réussis</th><th>Échecs</th><th>Remboursés</th><th>Taux</th><th>Montant</th><th>Statut</th><th></th>
+        </tr></thead>
+        <tbody id="hist-tbody"><tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">Chargement…</td></tr></tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+
+<script>
+let fichierSelectionne_file = null, dernierImportId = null, roleUtilisateur = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const u = await PGA_LAYOUT.init('paiements', 'Paiements Orange Money');
+  if (!u) return;
+
+  roleUtilisateur = u.role;
+
+  // Masquer le bloc import si pas DSC
+  if (!['admin_dsc','superviseur_dsc'].includes(u.role)) {
+    document.getElementById('section-import').style.display = 'none';
+  }
+
+  // Remplir le sélecteur de période
+  const sel = document.getElementById('sel-periode');
+  const today = new Date();
+  for (let i = 0; i < 12; i++) {
+    let year = today.getFullYear();
+    let month = today.getMonth() - i;
+
+    // Gérer les mois négatifs en ajustant l'année
+    while (month < 0) {
+      month += 12;
+      year--;
+    }
+
+    const d = new Date(year, month, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    sel.appendChild(new Option(lbl, val, i===0, i===0));
+  }
+
+  // Drag & drop
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', ()=> zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f) selectionnerFichier(f);
+  });
+
+  await chargerHistorique();
+});
+
+function fichierSelectionne(input) {
+  if (input.files[0]) selectionnerFichier(input.files[0]);
+}
+
+function selectionnerFichier(f) {
+  fichierSelectionne_file = f;
+  document.getElementById('upload-fname').textContent = f.name;
+  document.getElementById('upload-fsize').textContent = (f.size / 1024).toFixed(0) + ' Ko';
+  document.getElementById('upload-selected').classList.add('show');
+  document.getElementById('btn-importer').disabled = false;
+}
+
+async function lancerImport() {
+  if (!fichierSelectionne_file) return;
+  const periode = document.getElementById('sel-periode').value;
+  const btn = document.getElementById('btn-importer');
+  btn.disabled = true;
+  btn.innerHTML = `<span style="display:inline-block;width:14px;height:14px;border:2px solid #0D111722;border-top-color:#0D1117;border-radius:50%;animation:spin .7s linear infinite"></span> Import en cours…`;
+
+  PGA_UI.showLoader('Traitement du fichier Orange Money…');
+
+  try {
+    const formData = new FormData();
+    formData.append('fichier', fichierSelectionne_file);
+    formData.append('periode_mois', periode);
+
+    const res = await PGA_API.paiements.importer(formData);
+    dernierImportId = res.import?.id;
+
+    // Afficher les résultats
+    document.getElementById('r-total').textContent        = PGA_UI.fmt.nb(res.import.nb_reussis + res.import.nb_echecs + (res.import.nb_rembourses||0) + (res.import.nb_introuvables||0));
+    document.getElementById('r-reussis').textContent      = PGA_UI.fmt.nb(res.import.nb_reussis);
+    document.getElementById('r-echecs').textContent       = PGA_UI.fmt.nb(res.import.nb_echecs);
+    document.getElementById('r-rembourses').textContent   = PGA_UI.fmt.nb(res.import.nb_rembourses||0);
+    document.getElementById('r-introuvables').textContent = PGA_UI.fmt.nb(res.import.nb_introuvables||0);
+    document.getElementById('montant-total').innerHTML   = `<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--green)"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg> Montant total distribué : <strong style="color:var(--green)">${PGA_UI.fmt.montant(res.import.montant_total)}</strong>`;
+    document.getElementById('result-section').style.display = 'block';
+
+    PGA_UI.toast(`Import réussi — ${res.import.taux_reussite} de paiements confirmés`, 'success');
+    await chargerHistorique();
+
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur lors de l\'import', 'error');
+  } finally {
+    PGA_UI.hideLoader();
+    btn.disabled = false;
+    btn.textContent = 'Importer le fichier';
+  }
+}
+
+async function cloturer() {
+  if (!dernierImportId) return;
+  await cloturerImport(dernierImportId, { stopPropagation: () => {} });
+}
+
+async function chargerHistorique() {
+  try {
+    const res = await PGA_API.paiements.imports();
+    const imports = res.data || res;
+    document.getElementById('hist-count').textContent = `${imports.length || 0} imports`;
+
+    if (!imports.length) {
+      document.getElementById('hist-tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text3)">Aucun import</td></tr>';
+      return;
+    }
+
+    const peutCloturer = ['admin_dsc','superviseur_dsc'].includes(roleUtilisateur);
+
+    document.getElementById('hist-tbody').innerHTML = imports.map(imp => {
+      const traites = (imp.nb_reussis||0) + (imp.nb_echecs||0) + (imp.nb_rembourses||0);
+      const taux = traites > 0 ? ((imp.nb_reussis / traites)*100).toFixed(1) : 0;
+      const couleur = taux >= 90 ? '#2ECC7A' : taux >= 70 ? '#F0A030' : '#E8524A';
+      const btnCloture = (!imp.cloture && peutCloturer)
+        ? `<div style="display:flex;gap:6px">
+             <button onclick="cloturerImport('${imp.id}', event)" style="padding:4px 10px;background:rgba(240,160,48,.12);border:1px solid rgba(240,160,48,.25);border-radius:6px;font-size:11px;font-weight:600;color:var(--amber);cursor:pointer;white-space:nowrap">Clôturer</button>
+             <button onclick="annulerImport('${imp.id}', event)" style="padding:4px 10px;background:rgba(232,82,74,.1);border:1px solid rgba(232,82,74,.25);border-radius:6px;font-size:11px;font-weight:600;color:var(--red);cursor:pointer;white-space:nowrap">Annuler</button>
+           </div>`
+        : '';
+      return `
+        <tr onclick="voirImport('${imp.id}')">
+          <td style="font-family:'IBM Plex Mono',monospace;font-size:12px">${PGA_UI.fmt.periode(imp.periode_mois)}</td>
+          <td style="font-size:11px;color:var(--text3);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${imp.fichier_nom}">${imp.fichier_nom}</td>
+          <td style="color:var(--green);font-family:'IBM Plex Mono',monospace">${PGA_UI.fmt.nb(imp.nb_reussis)}</td>
+          <td style="color:var(--red);font-family:'IBM Plex Mono',monospace">${PGA_UI.fmt.nb(imp.nb_echecs)}</td>
+          <td style="color:var(--amber);font-family:'IBM Plex Mono',monospace">${PGA_UI.fmt.nb(imp.nb_rembourses||0)}</td>
+          <td>
+            <div style="font-size:11px;color:${couleur};font-family:'IBM Plex Mono',monospace;margin-bottom:4px">${taux}%</div>
+            <div class="prog-wrap"><div class="prog-fill" style="width:${taux}%;background:${couleur}"></div></div>
+          </td>
+          <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text2)">${PGA_UI.fmt.montant(imp.montant_total)}</td>
+          <td>${imp.cloture
+            ? `<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(46,204,122,.1);color:var(--green);border:1px solid rgba(46,204,122,.2);font-family:'IBM Plex Mono',monospace">CLÔTURÉ</span>`
+            : `<span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(240,160,48,.1);color:var(--amber);border:1px solid rgba(240,160,48,.2);font-family:'IBM Plex Mono',monospace">OUVERT</span>`
+          }</td>
+          <td>${btnCloture}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur chargement historique', 'error');
+  }
+}
+
+async function cloturerImport(id, event) {
+  event.stopPropagation();
+  const ok = await PGA_UI.confirmer('Clôturer l\'import', 'Une fois clôturé, cet import ne pourra plus être modifié. Confirmer ?', { labelOk: 'Clôturer', danger: true });
+  if (!ok) return;
+  try {
+    await PGA_API.paiements.cloturer(id);
+    PGA_UI.toast('Import clôturé définitivement.', 'success');
+    // Masquer result-section si c'est le même import
+    if (id === dernierImportId) {
+      document.getElementById('result-section').style.display = 'none';
+    }
+    await chargerHistorique();
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur', 'error');
+  }
+}
+
+async function annulerImport(id, event) {
+  event.stopPropagation();
+  const ok = await PGA_UI.confirmer(
+    'Annuler l\'import',
+    'Cette action supprimera définitivement l\'import et toutes ses lignes de paiement. Le fichier sera aussi supprimé. Vous pourrez ensuite importer le bon fichier. Confirmer ?',
+    { labelOk: 'Annuler l\'import', danger: true }
+  );
+  if (!ok) return;
+  try {
+    await PGA_API.paiements.annuler(id);
+    PGA_UI.toast('Import annulé. Vous pouvez maintenant importer le bon fichier.', 'success');
+    if (id === dernierImportId) {
+      dernierImportId = null;
+      document.getElementById('result-section').style.display = 'none';
+    }
+    await chargerHistorique();
+  } catch (err) {
+    PGA_UI.toast(err.message || 'Erreur lors de l\'annulation', 'error');
+  }
+}
+
+function voirImport(id) {
+  dernierImportId = id;
+}
+</script>
+</body>
+</html>
