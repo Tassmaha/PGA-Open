@@ -1,0 +1,8 @@
+[
+  {"depth": 0, "key": "region",             "name": "R\u00e9gion",               "name_plural": "R\u00e9gions",               "is_health_facility": false, "is_assignment_level": false},
+  {"depth": 1, "key": "province",           "name": "Province",             "name_plural": "Provinces",             "is_health_facility": false, "is_assignment_level": false},
+  {"depth": 2, "key": "district",           "name": "District sanitaire",   "name_plural": "Districts sanitaires",  "is_health_facility": false, "is_assignment_level": false},
+  {"depth": 3, "key": "commune",            "name": "Commune",              "name_plural": "Communes",              "is_health_facility": false, "is_assignment_level": false},
+  {"depth": 4, "key": "health_facility",    "name": "Formation sanitaire",  "name_plural": "Formations sanitaires", "is_health_facility": true,  "is_assignment_level": false},
+  {"depth": 5, "key": "village",            "name": "Village",              "name_plural": "Villages",              "is_health_facility": false, "is_assignment_level": true}
+]
