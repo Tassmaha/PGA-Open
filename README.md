@@ -1,58 +1,97 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# PGA Open
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Plateforme de Gestion des Agents de Sante Communautaire** — Multi-pays, multi-tenant.
 
-## About Laravel
+Une plateforme open source pour la gestion des agents de sante communautaire (ASC/ASBC/Relais) deployable dans plusieurs pays d'Afrique.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Fonctionnalites
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Gestion complete des agents (CRUD, validation, desactivation)
+- Suivi de la fonctionnalite mensuelle (4 criteres)
+- Import et reconciliation des paiements mobile money
+- Tableau de bord avec indicateurs en temps reel
+- Systeme d'alertes (documents d'identite, paiements)
+- Export CSV et PDF
+- **Multi-tenant** : 1 base de donnees par pays
+- **Hierarchie geographique dynamique** (3 a 8 niveaux)
+- Configuration complete par pays (agent, ID, devise, operateur mobile)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Architecture
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+Tenant Resolution (X-Tenant header / subdomain)
+        |
+   TenantResolver Middleware
+        |
+   DB Switch + Config Merge
+        |
+   Laravel 11 API (Sanctum)
+        |
+   PostgreSQL (1 DB / pays)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### Hierarchie geographique dynamique
 
-## Contributing
+Chaque pays definit ses propres niveaux :
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Pays | Niveaux |
+|------|---------|
+| Burkina Faso | Region > Province > District > Commune > CSPS > Village |
+| Senegal | Region > District > Poste de Sante > Village |
+| Mali | Region > Cercle > Centre de Sante > Village |
 
-## Code of Conduct
+2 tables (`geo_levels` + `geo_units`) remplacent les N tables fixes.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Installation
 
-## Security Vulnerabilities
+```bash
+# Cloner le projet
+git clone https://github.com/your-org/PGA-Open.git
+cd PGA-Open
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# Installer les dependances
+composer install
 
-## License
+# Configurer l'environnement
+cp .env.example .env
+# Editer .env : DB_DATABASE=pga_central, DB_USERNAME, DB_PASSWORD
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+# Migrer la base centrale
+php artisan migrate --path=database/migrations/central
+
+# Creer un tenant
+php artisan tenant:create burkina-faso "Burkina Faso" --create-db
+
+# Migrer et peupler le tenant
+php artisan tenant:migrate burkina-faso --seed
+```
+
+## Configuration par pays
+
+Chaque tenant surcharge `config/pga.php` via sa colonne `config` JSON :
+
+```json
+{
+  "agent": { "type_name": "ASC", "code_prefix": "ASC" },
+  "identity_document": { "name": "CNI", "length_min": 13, "length_max": 13 },
+  "payment": { "provider_name": "Wave" },
+  "country": { "name": "Senegal", "currency": "FCFA" }
+}
+```
+
+## Stack technique
+
+- **Backend** : Laravel 11, PHP 8.2+, PostgreSQL 16
+- **Auth** : Laravel Sanctum (token API)
+- **Frontend** : HTML/JS statique (pas de build step)
+- **PDF** : jsPDF + AutoTable (client-side)
+
+## Licence
+
+Ce projet est sous licence **AGPL-3.0** — voir [LICENSE](LICENSE).
+
+Les modules premium dans `modules/` ont leur propre licence commerciale.
+
+---
+
+*Developpe par eSanteCoM*
