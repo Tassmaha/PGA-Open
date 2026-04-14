@@ -19,6 +19,8 @@
 /storage/*.key
 /storage/pail
 /vendor
+/modules/*
+!/modules/.gitkeep
 _ide_helper.php
 Homestead.json
 Homestead.yaml

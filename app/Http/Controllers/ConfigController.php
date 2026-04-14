@@ -43,6 +43,7 @@ class ConfigController extends Controller
             'geo_levels'        => GeoLevel::orderBy('depth')->get(['key', 'name', 'name_plural', 'is_health_facility', 'is_assignment_level']),
             'roles'             => config('pga.roles'),
             'phone_format'      => config('pga.validation.phone_regex'),
+            'modules'           => app(\App\Services\ModuleManager::class)->active(),
         ]);
     }
 }
