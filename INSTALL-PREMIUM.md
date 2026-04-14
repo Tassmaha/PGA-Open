@@ -54,37 +54,98 @@ Ajoutez le repository privé dans `composer.json` du projet :
 
 ---
 
-## 3. Installation du module
+## 3. Installation des modules
+
+Les 4 modules premium disponibles :
+
+| Module | Package Composer | Fonctionnalités |
+|--------|------------------|----------------|
+| **Analytics** | `pga-open/premium-analytics` | Assistant IA, rapports narratifs |
+| **Advanced Reports** | `pga-open/premium-advanced-reports` | Excel formaté, rapports planifiés, comparatifs |
+| **Integrations** | `pga-open/premium-integrations` | SMS, WhatsApp, DHIS2, webhooks |
+| **Multi-Org** | `pga-open/premium-multi-org` | Super-admin, SSO, comparaison inter-pays |
 
 ### Module Analytics (Assistant IA + Rapports narratifs)
 
 ```bash
 cd /var/www/pga-open
 composer require pga-open/premium-analytics
-
-# Publier la config
 php artisan vendor:publish --tag=pga-analytics-config
 ```
 
-### Module Rapports avancés
+### Module Advanced Reports (Excel, planifiés, comparatifs)
 
 ```bash
 composer require pga-open/premium-advanced-reports
 php artisan vendor:publish --tag=pga-advanced-reports-config
+php artisan tenant:migrate <slug>  # Crée la table scheduled_reports
 ```
 
-### Module Intégrations (SMS, WhatsApp, DHIS2)
+### Module Integrations (SMS, WhatsApp, DHIS2, webhooks)
 
 ```bash
 composer require pga-open/premium-integrations
 php artisan vendor:publish --tag=pga-integrations-config
+php artisan tenant:migrate <slug>  # Crée les tables sms_logs, webhook_*
 ```
 
-### Module Multi-organisation
+**Configuration SMS** dans `.env` (choisir un driver) :
+
+```bash
+# Africa's Talking (recommandé Afrique de l'Ouest)
+PGA_SMS_DRIVER=africas_talking
+AT_API_KEY=xxxxxxxxxxxxxxxxxx
+AT_USERNAME=sandbox
+AT_SENDER_ID=PGA
+
+# OU Twilio
+PGA_SMS_DRIVER=twilio
+TWILIO_SID=ACxxxx
+TWILIO_TOKEN=xxxx
+TWILIO_FROM=+22670xxxxx
+```
+
+**Configuration WhatsApp Business** (optionnel) :
+
+```bash
+PGA_WHATSAPP_ENABLED=true
+WHATSAPP_PHONE_ID=123456789
+WHATSAPP_ACCESS_TOKEN=EAAxxxx
+WHATSAPP_WEBHOOK_TOKEN=my-secret-verify-token
+```
+
+**Configuration DHIS2** (optionnel) :
+
+```bash
+PGA_DHIS2_ENABLED=true
+DHIS2_URL=https://dhis2.ministere.gov
+DHIS2_USERNAME=pga_user
+DHIS2_PASSWORD=xxxxx
+DHIS2_ORG_UNIT=ABC123XYZ
+DHIS2_DATA_SET=PGA_INDICATORS
+```
+
+### Module Multi-Organisation (super-admin, SSO)
 
 ```bash
 composer require pga-open/premium-multi-org
 php artisan vendor:publish --tag=pga-multi-org-config
+```
+
+**Configuration SSO OAuth2** (exemple Keycloak) :
+
+```bash
+PGA_SSO_ENABLED=true
+PGA_SSO_PROVIDER=oauth2
+OAUTH_CLIENT_ID=pga-open
+OAUTH_CLIENT_SECRET=xxxxx
+OAUTH_AUTHORIZE_URL=https://sso.ministere.gov/realms/pga/protocol/openid-connect/auth
+OAUTH_TOKEN_URL=https://sso.ministere.gov/realms/pga/protocol/openid-connect/token
+OAUTH_USER_URL=https://sso.ministere.gov/realms/pga/protocol/openid-connect/userinfo
+OAUTH_REDIRECT_URI=https://pga.gov.bf/api/v1/sso/callback
+
+# Désigner les super-admins (emails séparés par virgule)
+PGA_SUPER_ADMIN_EMAILS=admin@esantecom.org,consortium@who.int
 ```
 
 ---
