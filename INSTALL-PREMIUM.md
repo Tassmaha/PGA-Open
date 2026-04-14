@@ -46,7 +46,7 @@ Ajoutez le repository privé dans `composer.json` du projet :
     "repositories": [
         {
             "type": "vcs",
-            "url": "https://github.com/Tassmaha/pga-premium-modules"
+            "url": "https://github.com/Tassmaha/pga-open-premium"
         }
     ]
 }
